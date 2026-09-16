@@ -47,19 +47,15 @@ def inspect_updates(runner: CommandRunner | None = None) -> list[PackageUpdate]:
     updates: list[PackageUpdate] = []
     for line in completed.stdout.splitlines():
         parts = line.split()
-        if len(parts) != 4:
+        if len(parts) != 5 or parts[3] != "->":
             continue
-        name, current_version, arrow, available_version = parts
-        if arrow != "->":
-            continue
-        repository = "unknown"
-        if "/" in name:
-            repository, name = name.split("/", 1)
+
+        repository, name = parts[0].split("/", 1) if "/" in parts[0] else ("unknown", parts[0])
         updates.append(
             PackageUpdate(
                 name=name,
-                current_version=current_version,
-                available_version=available_version,
+                current_version=parts[1],
+                available_version=parts[4],
                 repository=repository,
             )
         )
