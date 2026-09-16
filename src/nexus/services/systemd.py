@@ -57,8 +57,10 @@ def _parse_enabled(output: str) -> dict[str, str]:
     enabled: dict[str, str] = {}
 
     for line in output.splitlines():
-        parts = line.split(None, 1)
-        if len(parts) == 2 and parts[0].endswith(".service"):
+        parts = line.split()
+        if len(parts) >= 2 and parts[0].endswith(".service"):
+            # list-unit-files may include a third PRESET column. The second
+            # column is the installation state we want to expose.
             enabled[parts[0]] = parts[1]
 
     return enabled
