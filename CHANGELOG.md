@@ -10,9 +10,16 @@ All notable changes to NEXUS are documented here.
 - Deterministic historical trend detection for persistent CPU, memory, and disk pressure.
 - Structured diagnostic findings for resource pressure, failed systemd services, and available package updates.
 - `nexus-diagnose` read-only diagnostic CLI with text and JSON output.
+- Integrated `nexus diagnose` command as the primary user-facing entry point for diagnosis.
+- `nexus diagnose` combines findings, incident grouping, evidence, and explainable next-step proposals in one command.
 - Structured incident modeling for grouping related findings.
 - Explainable remediation proposals containing evidence, rationale, risk, command representation, and confirmation metadata.
-- Focused unit coverage for historical detection, diagnostics, incident grouping, and remediation planning.
+- Focused unit coverage for historical detection, diagnostics, incident grouping, remediation planning, and the integrated CLI surface.
+
+### User value
+
+- NEXUS now has a concrete first-run workflow: ask one command what needs attention instead of manually combining multiple Linux inspection commands.
+- The README now documents the user problem, expected answers, and the distinction between diagnosis, planning, and authorized mutation.
 
 ### Safety
 
@@ -20,12 +27,13 @@ All notable changes to NEXUS are documented here.
 - Diagnostic collection failures are surfaced as evidence rather than triggering automatic changes.
 - Incident creation does not authorize any operation.
 - Remediation proposals are planning-only.
+- `nexus diagnose` is read-only and never executes its proposed commands.
 - Potentially mutating package and service operations remain behind explicit confirmation gates.
 - High-level diagnostic features do not accept arbitrary shell commands.
 
 ### Documentation
 
-- README updated to describe the observation → diagnosis → incident → planning pipeline.
+- README updated to explain why a Linux user would use NEXUS and why `nexus diagnose` is the recommended starting point.
 - Architecture documentation expanded with layer responsibilities and mutation boundaries.
 - Contributor guidance expanded with testing, documentation, and safety expectations.
 - Dedicated diagnostic architecture documentation added.
