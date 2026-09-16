@@ -16,6 +16,11 @@ All notable changes to NEXUS are documented here.
 - Explainable remediation proposals containing evidence, rationale, risk, command representation, and confirmation metadata.
 - Focused unit coverage for historical detection, diagnostics, incident grouping, remediation planning, and the integrated CLI surface.
 
+### Fixed
+
+- Historical trend findings now use an explicit deterministic metric order so output remains stable across runs.
+- Failed-service diagnostic evidence now includes the exact systemd unit name, making the finding directly traceable to the affected service.
+
 ### User value
 
 - NEXUS now has a concrete first-run workflow: ask one command what needs attention instead of manually combining multiple Linux inspection commands.
