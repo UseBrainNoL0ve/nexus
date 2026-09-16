@@ -16,11 +16,18 @@ All notable changes to NEXUS are documented here.
 - Active navigation state and consistent NEXUS dark visual language across pages.
 - Richer dashboard presentation with icon-led metric cards, system identity telemetry, live monitor status, and refined navigation branding.
 - Interactive visual states for navigation, health badges, refresh controls, metric cards, and read-only mode.
+- Background dashboard worker so telemetry collection no longer blocks the Qt event loop.
+- Near-real-time dashboard refresh with visible scan state and refresh-cycle telemetry.
+- Interactive service management with explicit confirmation for start, stop, and restart.
+- Interactive package update management with explicit per-package confirmation.
+- Service and package tables with selectable rows, state columns, and action controls.
 
 ### Safety
 
-- All new GUI detail pages are observation-only.
-- No service, package, or scheduler mutation is exposed by the 0.5 navigation layer.
+- Service mutations remain behind the existing NEXUS confirmation-gated action engine.
+- Package mutations remain behind the existing confirmation-gated package engine.
+- The GUI does not expose arbitrary shell execution.
+- Background telemetry is observation-only and does not mutate system state.
 - Detail-page failures are contained in the page view instead of terminating the desktop application.
 - Visual enhancements do not change the underlying system command safety model.
 
