@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime, timezone
 
+from nexus.scheduler.audit import DEFAULT_AUDIT_PATH, new_entry, write_entry
 from nexus.scheduler.models import ScheduledJob
 from nexus.scheduler.notifications import notify
 from nexus.scheduler.store import ScheduleStore
@@ -20,10 +21,12 @@ class Scheduler:
         store: ScheduleStore | None = None,
         action_runner: ActionRunner | None = None,
         notifier: Notifier | None = None,
+        audit_path=DEFAULT_AUDIT_PATH,
     ) -> None:
         self.store = store or ScheduleStore()
         self.action_runner = action_runner or (lambda action: (False, f"No runner for {action}"))
         self.notifier = notifier or notify
+        self.audit_path = audit_path
 
     def run_due(self, now: datetime | None = None) -> list[tuple[ScheduledJob, bool, str]]:
         current = now or datetime.now(timezone.utc)
@@ -34,6 +37,16 @@ class Scheduler:
             success, message = self.action_runner(job.action)
             updated = job.mark_run(current)
             self.store.update(updated)
+            write_entry(
+                new_entry(
+                    job=job.name,
+                    action=job.action,
+                    success=success,
+                    message=message,
+                    timestamp=current,
+                ),
+                self.audit_path,
+            )
             results.append((updated, success, message))
             if job.notify:
                 title = f"NEXUS: {job.name}"
