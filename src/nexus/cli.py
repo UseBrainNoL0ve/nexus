@@ -1,4 +1,5 @@
 import argparse
+import json
 from pathlib import Path
 
 from nexus.automation.planner import plan_actions
@@ -91,13 +92,51 @@ def _print_services() -> int:
     return 0
 
 
-def _inspect_packages() -> tuple[int, list]:
-    print("NEXUS package updates (read-only)")
+def _inspect_packages(json_output: bool = False) -> tuple[int, list]:
     try:
         updates = inspect_updates()
     except PackageManagerError as exc:
-        print(f"Package inspection failed: {exc}")
+        if json_output:
+            print(
+                json.dumps(
+                    {
+                        "package_manager": "pacman",
+                        "updates": [],
+                        "count": 0,
+                        "read_only": True,
+                        "error": str(exc),
+                    },
+                    indent=2,
+                )
+            )
+        else:
+            print("NEXUS package updates (read-only)")
+            print(f"Package inspection failed: {exc}")
         return 1, []
+
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "package_manager": "pacman",
+                    "updates": [
+                        {
+                            "repository": update.repository,
+                            "name": update.name,
+                            "current_version": update.current_version,
+                            "available_version": update.available_version,
+                        }
+                        for update in updates
+                    ],
+                    "count": len(updates),
+                    "read_only": True,
+                },
+                indent=2,
+            )
+        )
+        return 0, updates
+
+    print("NEXUS package updates (read-only)")
 
     if not updates:
         print("No pending package updates reported by pacman.")
@@ -219,6 +258,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("services", help="inspect systemd services without modifying them")
 
     packages = sub.add_parser("packages", help="inspect or plan pacman updates")
+    packages.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON output",
+    )
     package_actions = packages.add_subparsers(dest="package_action")
     update = package_actions.add_parser(
         "update",
@@ -252,8 +296,11 @@ def main() -> int:
 
     if args.command == "packages":
         if args.package_action == "update":
+            if args.json:
+                print("Error: --json is only supported for package inspection.")
+                return 2
             return _plan_package_updates(args.confirm)
-        return _inspect_packages()[0]
+        return _inspect_packages(args.json)[0]
 
     if args.command == "service":
         return _print_service_action(args.service, args.action, args.dry_run, args.confirm)
