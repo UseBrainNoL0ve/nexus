@@ -8,6 +8,8 @@ from nexus.automation.planner import plan_actions
 from nexus.automation.rules import evaluate_rules
 from nexus.core.models import CpuSnapshot, DiskSnapshot, MemorySnapshot, NetworkInterface, SystemSnapshot
 from nexus.doctor import run_checks
+from nexus.packages.actions import plan_package_updates
+from nexus.packages.pacman import inspect_updates
 from nexus.reporting import snapshot_to_json
 from nexus.services.actions import plan_service_action
 from nexus.services.audit import read_audit_entries
@@ -95,6 +97,21 @@ class NEXUSTests(unittest.TestCase):
         self.assertEqual(services[0].enabled_state, "enabled")
         self.assertEqual(services[1].active_state, "failed")
         self.assertEqual(services[1].enabled_state, "disabled")
+
+    def test_package_update_plan_requires_confirmation(self):
+        updates = inspect_updates(
+            lambda command: subprocess.CompletedProcess(
+                command,
+                0,
+                stdout="core/linux 6.17-1 -> 6.17-2\n",
+                stderr="",
+            )
+        )
+        proposals = plan_package_updates(updates)
+        self.assertEqual(len(proposals), 1)
+        self.assertEqual(proposals[0].command, ("sudo", "pacman", "-S", "core/linux"))
+        self.assertEqual(proposals[0].risk, "medium")
+        self.assertTrue(proposals[0].requires_confirmation)
 
     def test_service_action_plan_is_non_executing(self):
         proposal = plan_service_action("NetworkManager.service", "restart")
