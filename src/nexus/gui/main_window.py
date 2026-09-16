@@ -22,12 +22,21 @@ from nexus.services.systemd import inspect_services
 
 
 class MetricCard(QFrame):
-    def __init__(self, title: str, suffix: str = "") -> None:
+    def __init__(self, title: str, icon: str = "", suffix: str = "") -> None:
         super().__init__()
         self.setObjectName("metricCard")
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(7)
+        heading = QHBoxLayout()
+        self.icon = QLabel(icon)
+        self.icon.setObjectName("cardIcon")
         self.title = QLabel(title.upper())
         self.title.setObjectName("cardTitle")
+        heading.addWidget(self.icon)
+        heading.addWidget(self.title)
+        heading.addStretch()
+        layout.addLayout(heading)
         self.value = QLabel("—")
         self.value.setObjectName("metricValue")
         self.suffix = suffix
@@ -36,7 +45,6 @@ class MetricCard(QFrame):
         self.bar.setTextVisible(False)
         self.bar.setFixedHeight(5)
         self.bar.hide()
-        layout.addWidget(self.title)
         layout.addWidget(self.value)
         layout.addWidget(self.bar)
 
@@ -53,9 +61,10 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("NEXUS — Linux System Intelligence")
-        self.resize(1180, 760)
-        self.setMinimumSize(980, 640)
+        self.resize(1240, 800)
+        self.setMinimumSize(1000, 680)
         self.seconds_until_refresh = 5
+        self.pulse = False
 
         root = QWidget()
         root.setObjectName("root")
@@ -66,30 +75,50 @@ class MainWindow(QMainWindow):
 
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(210)
+        sidebar.setFixedWidth(224)
         side = QVBoxLayout(sidebar)
-        side.setContentsMargins(20, 28, 20, 20)
-        side.setSpacing(8)
+        side.setContentsMargins(18, 24, 18, 20)
+        side.setSpacing(7)
 
-        logo = QLabel("NEXUS")
-        logo.setObjectName("logo")
-        side.addWidget(logo)
-        side.addWidget(QLabel("SYSTEM INTELLIGENCE"))
-        side.addSpacing(24)
+        brand = QHBoxLayout()
+        logo = QLabel("N")
+        logo.setObjectName("logoMark")
+        brand_text = QVBoxLayout()
+        logo_name = QLabel("NEXUS")
+        logo_name.setObjectName("logo")
+        logo_subtitle = QLabel("SYSTEM INTELLIGENCE")
+        logo_subtitle.setObjectName("logoSubtitle")
+        brand_text.addWidget(logo_name)
+        brand_text.addWidget(logo_subtitle)
+        brand.addWidget(logo)
+        brand.addLayout(brand_text)
+        side.addLayout(brand)
+        side.addSpacing(28)
 
-        nav_items = ("Dashboard", "Services", "Packages", "Doctor", "Scheduler", "History")
+        nav_items = (
+            ("▦", "Dashboard"),
+            ("◈", "Services"),
+            ("□", "Packages"),
+            ("✓", "Doctor"),
+            ("◷", "Scheduler"),
+            ("≡", "History"),
+        )
         self.nav_buttons: dict[str, QPushButton] = {}
-        for index, name in enumerate(nav_items):
-            button = QPushButton(name)
+        for index, (icon, name) in enumerate(nav_items):
+            button = QPushButton(f"  {icon}   {name}")
             button.setObjectName("navButton")
             button.setCheckable(True)
             button.clicked.connect(lambda checked=False, page=index: self.show_page(page))
             self.nav_buttons[name] = button
             side.addWidget(button)
+
         side.addStretch()
-        readonly = QLabel("READ-ONLY MODE")
-        readonly.setObjectName("readonlyBadge")
-        side.addWidget(readonly)
+        mode = QLabel("●  LOCAL / READ-ONLY")
+        mode.setObjectName("modeBadge")
+        side.addWidget(mode)
+        version = QLabel("NEXUS 0.2.0-alpha")
+        version.setObjectName("sidebarVersion")
+        side.addWidget(version)
         root_layout.addWidget(sidebar)
 
         self.pages = QStackedWidget()
@@ -103,29 +132,34 @@ class MainWindow(QMainWindow):
 
         self.setStyleSheet(
             """
-            QWidget#root { background: #0b0e13; color: #e7ebf2; }
-            QFrame#sidebar { background: #0f131a; border-right: 1px solid #202631; }
-            QLabel#logo { font-size: 27px; font-weight: 800; letter-spacing: 2px; }
-            QLabel#pageTitle { font-size: 30px; font-weight: 750; }
-            QLabel#subtitle { color: #7f8a9a; font-size: 13px; }
-            QLabel#cardTitle { color: #7f8a9a; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
-            QFrame#metricCard, QFrame#panel, QFrame#detailPage { background: #121720; border: 1px solid #222a36; border-radius: 12px; }
-            QFrame#metricCard { padding: 5px; }
-            QLabel#metricValue { font-size: 27px; font-weight: 700; }
-            QLabel#healthBadge { background: #17261f; color: #71d39b; border: 1px solid #28553e; border-radius: 16px; padding: 7px 12px; font-weight: 700; }
-            QLabel#healthBadgeWarning { background: #302718; color: #f0bd70; border: 1px solid #6b4b22; border-radius: 16px; padding: 7px 12px; font-weight: 700; }
-            QLabel#healthDetails { color: #b8c1ce; }
-            QLabel#liveText { color: #71d39b; font-weight: 700; }
-            QLabel#readonlyBadge { color: #7f8a9a; border: 1px solid #29313d; border-radius: 8px; padding: 6px; }
-            QPushButton#navButton { text-align: left; padding: 10px 12px; border-radius: 7px; background: transparent; color: #9ba6b5; border: 0; }
-            QPushButton#navButton:checked { background: #1b222d; color: #edf1f7; }
-            QPushButton#navButton:hover { background: #1b222d; color: #edf1f7; }
-            QPushButton#primaryButton { background: #e7ebf2; color: #10141a; padding: 9px 15px; border-radius: 8px; font-weight: 700; }
+            QWidget#root { background: #090c11; color: #e7ebf2; }
+            QFrame#sidebar { background: #0c1017; border-right: 1px solid #1c2430; }
+            QLabel#logoMark { background: #e7ebf2; color: #0b0f15; border-radius: 10px; min-width: 38px; max-width: 38px; min-height: 38px; max-height: 38px; font-size: 21px; font-weight: 900; qproperty-alignment: AlignCenter; }
+            QLabel#logo { font-size: 22px; font-weight: 850; letter-spacing: 2px; }
+            QLabel#logoSubtitle { color: #657184; font-size: 8px; font-weight: 700; letter-spacing: 1px; }
+            QLabel#pageTitle { font-size: 31px; font-weight: 800; }
+            QLabel#subtitle { color: #768297; font-size: 13px; }
+            QLabel#cardTitle { color: #778398; font-size: 10px; font-weight: 800; letter-spacing: 1.1px; }
+            QLabel#cardIcon { color: #718cff; font-size: 13px; font-weight: 800; }
+            QFrame#metricCard, QFrame#panel, QFrame#detailPage { background: #101620; border: 1px solid #202a37; border-radius: 14px; }
+            QFrame#metricCard:hover, QFrame#panel:hover { border: 1px solid #2b3849; }
+            QLabel#metricValue { font-size: 25px; font-weight: 750; }
+            QLabel#healthBadge { background: #13241c; color: #70d59a; border: 1px solid #28533d; border-radius: 15px; padding: 7px 12px; font-weight: 750; }
+            QLabel#healthBadgeWarning { background: #2a2115; color: #eeb96e; border: 1px solid #65471f; border-radius: 15px; padding: 7px 12px; font-weight: 750; }
+            QLabel#healthDetails { color: #b8c1ce; line-height: 1.4; }
+            QLabel#liveText { color: #70d59a; font-weight: 750; }
+            QLabel#modeBadge { color: #70d59a; background: #102019; border: 1px solid #234a37; border-radius: 8px; padding: 7px 9px; font-size: 10px; font-weight: 750; }
+            QLabel#sidebarVersion { color: #4f5b6d; font-size: 10px; padding-left: 4px; }
+            QPushButton#navButton { text-align: left; padding: 11px 10px; border-radius: 9px; background: transparent; color: #7f8a9c; border: 1px solid transparent; font-size: 12px; font-weight: 650; }
+            QPushButton#navButton:checked { background: #171e29; color: #f1f4f8; border: 1px solid #252f3d; }
+            QPushButton#navButton:hover { background: #141a23; color: #edf1f7; }
+            QPushButton#primaryButton { background: #e7ebf2; color: #10141a; padding: 9px 15px; border-radius: 9px; font-weight: 750; border: 0; }
             QPushButton#primaryButton:hover { background: #ffffff; }
+            QPushButton#primaryButton:disabled { background: #343b46; color: #858e9c; }
             QProgressBar { border: 0; background: #202733; border-radius: 3px; }
-            QProgressBar::chunk { background: #6f8cff; border-radius: 3px; }
-            QLabel#statusBar { color: #697586; font-size: 11px; }
-            QPlainTextEdit#detailOutput { background: #0e131b; color: #c8d0dc; border: 0; font-family: monospace; font-size: 12px; padding: 12px; }
+            QProgressBar::chunk { background: #718cff; border-radius: 3px; }
+            QLabel#statusBar { color: #566174; font-size: 10px; }
+            QPlainTextEdit#detailOutput { background: #0b1017; color: #c8d0dc; border: 0; border-radius: 10px; font-family: monospace; font-size: 12px; padding: 12px; }
             """
         )
 
@@ -139,7 +173,7 @@ class MainWindow(QMainWindow):
         content = QWidget()
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(30, 26, 30, 24)
-        content_layout.setSpacing(18)
+        content_layout.setSpacing(17)
         self.pages.addWidget(content)
 
         header = QHBoxLayout()
@@ -155,31 +189,36 @@ class MainWindow(QMainWindow):
         self.health = QLabel("●  Checking")
         self.health.setObjectName("healthBadge")
         header.addWidget(self.health)
-        self.refresh_button = QPushButton("Refresh now")
+        self.refresh_button = QPushButton("↻  Refresh")
         self.refresh_button.setObjectName("primaryButton")
         self.refresh_button.clicked.connect(self.refresh)
         header.addWidget(self.refresh_button)
         content_layout.addLayout(header)
 
         metrics = QGridLayout()
-        metrics.setSpacing(14)
-        self.cpu = MetricCard("CPU", "%")
-        self.memory = MetricCard("Memory", "%")
-        self.disk = MetricCard("Disk", "%")
-        self.network = MetricCard("Network")
+        metrics.setSpacing(13)
+        self.cpu = MetricCard("CPU Load", "◉", "%")
+        self.memory = MetricCard("Memory", "◒", "%")
+        self.disk = MetricCard("Root Disk", "◫", "%")
+        self.network = MetricCard("Network", "⌁")
         for index, card in enumerate((self.cpu, self.memory, self.disk, self.network)):
             metrics.addWidget(card, 0, index)
         content_layout.addLayout(metrics)
 
         middle = QHBoxLayout()
-        middle.setSpacing(14)
+        middle.setSpacing(13)
         health_frame = QFrame()
         health_frame.setObjectName("panel")
         health_layout = QVBoxLayout(health_frame)
+        health_layout.setContentsMargins(18, 16, 18, 16)
         health_header = QHBoxLayout()
-        health_header.addWidget(QLabel("System Health"))
+        health_title = QLabel("System Health")
+        health_title.setStyleSheet("font-size: 15px; font-weight: 750;")
+        health_header.addWidget(health_title)
         health_header.addStretch()
-        health_header.addWidget(QLabel("5 checks"))
+        self.check_count = QLabel("5 checks")
+        self.check_count.setObjectName("subtitle")
+        health_header.addWidget(self.check_count)
         health_layout.addLayout(health_header)
         self.health_details = QLabel("Loading health checks…")
         self.health_details.setObjectName("healthDetails")
@@ -190,24 +229,32 @@ class MainWindow(QMainWindow):
         activity = QFrame()
         activity.setObjectName("panel")
         activity_layout = QVBoxLayout(activity)
-        activity_layout.addWidget(QLabel("Live Monitor"))
-        self.refresh_info = QLabel("Auto-refresh: ON")
+        activity_layout.setContentsMargins(18, 16, 18, 16)
+        activity_title = QLabel("Live Monitor")
+        activity_title.setStyleSheet("font-size: 15px; font-weight: 750;")
+        activity_layout.addWidget(activity_title)
+        self.refresh_info = QLabel("●  Auto-refresh: ON")
         self.refresh_info.setObjectName("liveText")
         activity_layout.addWidget(self.refresh_info)
         self.last_updated = QLabel("Last update: —")
+        self.last_updated.setObjectName("subtitle")
         activity_layout.addWidget(self.last_updated)
+        self.system_identity = QLabel("Host: —\nKernel: —")
+        self.system_identity.setObjectName("healthDetails")
+        activity_layout.addSpacing(8)
+        activity_layout.addWidget(self.system_identity)
         activity_layout.addStretch()
         middle.addWidget(activity, 1)
         content_layout.addLayout(middle)
 
         system_grid = QGridLayout()
-        system_grid.setSpacing(14)
-        self.services = MetricCard("Systemd Services")
-        self.packages = MetricCard("Package Updates")
+        system_grid.setSpacing(13)
+        self.services = MetricCard("Systemd Services", "◈")
+        self.packages = MetricCard("Package Updates", "□")
         system_grid.addWidget(self.services, 0, 0)
         system_grid.addWidget(self.packages, 0, 1)
         content_layout.addLayout(system_grid)
-        self.status = QLabel("Read-only dashboard")
+        self.status = QLabel("READ-ONLY • local system data")
         self.status.setObjectName("statusBar")
         content_layout.addWidget(self.status)
 
@@ -221,10 +268,12 @@ class MainWindow(QMainWindow):
 
     def _timer_tick(self) -> None:
         self.seconds_until_refresh -= 1
+        self.pulse = not self.pulse
         if self.seconds_until_refresh <= 0:
             self.refresh()
         else:
-            self.refresh_info.setText(f"Auto-refresh: ON  •  next refresh in {self.seconds_until_refresh}s")
+            dot = "●" if self.pulse else "○"
+            self.refresh_info.setText(f"{dot}  Auto-refresh: ON  •  next refresh in {self.seconds_until_refresh}s")
 
     def refresh(self) -> None:
         self.seconds_until_refresh = 5
@@ -235,6 +284,7 @@ class MainWindow(QMainWindow):
             self.memory.set_value(f"{snapshot.memory.used_percent:.1f}%", snapshot.memory.used_percent)
             self.disk.set_value(f"{snapshot.disk.used_percent:.1f}%", snapshot.disk.used_percent)
             self.network.set_value(f"{len(snapshot.network)} interfaces")
+            self.system_identity.setText(f"Host: {snapshot.hostname}\nKernel: {snapshot.kernel}")
             checks = run_checks(snapshot)
             warnings = [check for check in checks if check.status == "warn"]
             self.health.setText("●  Warning" if warnings else "●  Healthy")
@@ -248,7 +298,7 @@ class MainWindow(QMainWindow):
             updates = inspect_updates()
             self.packages.set_value(f"{len(updates)} available")
             self.last_updated.setText("Last update: just now")
-            self.refresh_info.setText("Auto-refresh: ON  •  next refresh in 5s")
+            self.refresh_info.setText("●  Auto-refresh: ON  •  next refresh in 5s")
             self.status.setText("READ-ONLY • local system data • automatic refresh every 5 seconds")
         except Exception as exc:
             self.health.setText("●  Error")
