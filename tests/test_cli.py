@@ -5,7 +5,7 @@ import subprocess
 import unittest
 from unittest.mock import patch
 
-from nexus.cli import _inspect_packages, _print_services, _print_status, build_parser
+from nexus.cli import _inspect_packages, _print_doctor, _print_services, _print_status, build_parser
 from nexus.core.models import CpuSnapshot, DiskSnapshot, MemorySnapshot, NetworkInterface, SystemSnapshot
 from nexus.packages.pacman import PackageUpdate
 from nexus.services.systemd import ServiceSnapshot, SystemdError
@@ -42,6 +42,49 @@ class StatusCliTests(unittest.TestCase):
     def test_status_parser_accepts_json_flag(self):
         args = build_parser().parse_args(["status", "--json"])
         self.assertEqual(args.command, "status")
+        self.assertTrue(args.json)
+
+
+class DoctorCliTests(unittest.TestCase):
+    def _snapshot(self, memory=43.75, disk=60.0, network=True):
+        return SystemSnapshot(
+            hostname="nexus-host",
+            platform="Linux",
+            kernel="6.17.1-cachyos",
+            python_version="3.13.7",
+            cpu=CpuSnapshot(load_percent=12.5, logical_cores=16),
+            memory=MemorySnapshot(total_bytes=160000, available_bytes=90000, used_percent=memory),
+            disk=DiskSnapshot(path="/", total_bytes=1000000, free_bytes=400000, used_percent=disk),
+            network=(NetworkInterface(name="enp0s3", rx_bytes=1234, tx_bytes=5678),) if network else (),
+        )
+
+    def test_doctor_json_output_is_machine_readable(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            code = _print_doctor(self._snapshot(), json_output=True)
+
+        payload = json.loads(output.getvalue())
+        self.assertEqual(code, 0)
+        self.assertEqual(payload["status"], "healthy")
+        self.assertEqual(len(payload["checks"]), 5)
+        self.assertTrue(payload["read_only"])
+        self.assertEqual(payload["checks"][0]["name"], "platform")
+        self.assertEqual(payload["checks"][2]["status"], "ok")
+
+    def test_doctor_json_output_reports_warning(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            code = _print_doctor(self._snapshot(memory=95.0), json_output=True)
+
+        payload = json.loads(output.getvalue())
+        self.assertEqual(code, 1)
+        self.assertEqual(payload["status"], "warn")
+        memory_check = next(check for check in payload["checks"] if check["name"] == "memory")
+        self.assertEqual(memory_check["status"], "warn")
+
+    def test_doctor_parser_accepts_json_flag(self):
+        args = build_parser().parse_args(["doctor", "--json"])
+        self.assertEqual(args.command, "doctor")
         self.assertTrue(args.json)
 
 
