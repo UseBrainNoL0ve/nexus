@@ -1,5 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import sys
+from typing import Any
 
 from nexus.core.models import SystemSnapshot
 
@@ -9,6 +10,9 @@ class CheckResult:
     name: str
     status: str
     detail: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
 
 def run_checks(snapshot: SystemSnapshot) -> list[CheckResult]:
@@ -39,3 +43,14 @@ def run_checks(snapshot: SystemSnapshot) -> list[CheckResult]:
         f"Detected {len(snapshot.network)} network interface(s)",
     ))
     return checks
+
+
+def checks_to_dict(checks: list[CheckResult]) -> list[dict[str, Any]]:
+    return [check.to_dict() for check in checks]
+
+
+def overall_status(checks: list[CheckResult]) -> str:
+    statuses = {check.status for check in checks}
+    if "warn" in statuses:
+        return "warn"
+    return "healthy"
