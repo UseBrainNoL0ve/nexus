@@ -5,6 +5,7 @@ from nexus.automation.planner import plan_actions
 from nexus.automation.rules import evaluate_rules
 from nexus.core.models import SystemSnapshot
 from nexus.doctor import run_checks
+from nexus.packages.actions import plan_package_updates
 from nexus.packages.pacman import PackageManagerError, inspect_updates
 from nexus.reporting import snapshot_to_json
 from nexus.sensors.system import collect_snapshot
@@ -89,17 +90,17 @@ def _print_services() -> int:
     return 0
 
 
-def _print_packages() -> int:
+def _inspect_packages() -> tuple[int, list]:
     print("NEXUS package updates (read-only)")
     try:
         updates = inspect_updates()
     except PackageManagerError as exc:
         print(f"Package inspection failed: {exc}")
-        return 1
+        return 1, []
 
     if not updates:
         print("No pending package updates reported by pacman.")
-        return 0
+        return 0, []
 
     print(f"Updates: {len(updates)}")
     for update in updates:
@@ -108,6 +109,26 @@ def _print_packages() -> int:
             f"{update.current_version} -> {update.available_version}"
         )
     print("No packages were changed.")
+    return 0, updates
+
+
+def _plan_package_updates() -> int:
+    print("NEXUS package update plan")
+    code, updates = _inspect_packages()
+    if code != 0:
+        return code
+    if not updates:
+        return 0
+
+    proposals = plan_package_updates(updates)
+    print("Action proposals:")
+    for proposal in proposals:
+        print(f"  - {proposal.repository}/{proposal.package}")
+        print(f"    {proposal.current_version} -> {proposal.available_version}")
+        print(f"    Risk: {proposal.risk} | Confirmation required: yes")
+        print(f"    Command: {' '.join(proposal.command)}")
+
+    print("No packages were changed. Planning is observation-only.")
     return 0
 
 
@@ -177,7 +198,13 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("doctor", help="run non-destructive health checks")
     sub.add_parser("automate", help="evaluate automation rules in dry-run mode")
     sub.add_parser("services", help="inspect systemd services without modifying them")
-    sub.add_parser("packages", help="inspect available pacman updates without modifying packages")
+
+    packages = sub.add_parser("packages", help="inspect or plan pacman updates")
+    package_actions = packages.add_subparsers(dest="package_action")
+    package_actions.add_parser(
+        "update",
+        help="plan available package updates without modifying packages",
+    )
 
     service = sub.add_parser("service", help="plan or execute a systemd service action")
     service.add_argument("action", choices=("start", "stop", "restart"))
@@ -200,7 +227,9 @@ def main() -> int:
         return _print_services()
 
     if args.command == "packages":
-        return _print_packages()
+        if args.package_action == "update":
+            return _plan_package_updates()
+        return _inspect_packages()[0]
 
     if args.command == "service":
         return _print_service_action(args.service, args.action, args.dry_run, args.confirm)
