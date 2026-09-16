@@ -6,6 +6,7 @@ from nexus.automation.rules import evaluate_rules
 from nexus.core.models import CpuSnapshot, DiskSnapshot, MemorySnapshot, NetworkInterface, SystemSnapshot
 from nexus.doctor import run_checks
 from nexus.reporting import snapshot_to_json
+from nexus.services.actions import plan_service_action
 from nexus.services.systemd import inspect_services
 
 
@@ -89,6 +90,24 @@ class NEXUSTests(unittest.TestCase):
         self.assertEqual(services[0].enabled_state, "enabled")
         self.assertEqual(services[1].active_state, "failed")
         self.assertEqual(services[1].enabled_state, "disabled")
+
+    def test_service_action_plan_is_non_executing(self):
+        proposal = plan_service_action("NetworkManager.service", "restart")
+        self.assertEqual(proposal.command, ("systemctl", "restart", "NetworkManager.service"))
+        self.assertEqual(proposal.risk, "medium")
+        self.assertTrue(proposal.requires_confirmation)
+
+    def test_service_stop_has_higher_risk(self):
+        proposal = plan_service_action("example.service", "stop")
+        self.assertEqual(proposal.risk, "high")
+
+    def test_service_action_rejects_invalid_unit(self):
+        with self.assertRaises(ValueError):
+            plan_service_action("NetworkManager", "restart")
+
+    def test_service_action_rejects_unsupported_action(self):
+        with self.assertRaises(ValueError):
+            plan_service_action("NetworkManager.service", "reload")
 
 
 if __name__ == "__main__":
