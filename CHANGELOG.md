@@ -12,6 +12,13 @@ All notable changes to NEXUS are documented here.
 - Added explicit `nexus-scheduler install --enable` support for deliberate service activation.
 - Added focused tests for operational-summary aggregation and scheduler installation side-effect boundaries.
 - Added `docs/operations.md` covering the operational summary and persistent scheduler workflow.
+- Added the GUI Incident & Remediation Center for evidence-first incident investigation and explainable planning.
+- Added a dependency-free historical telemetry chart for CPU, memory, and disk observations.
+- Added the v0.6 plugin runtime with API-versioned manifests, deterministic entry-point discovery, and capability registration.
+- Added `nexus-plugins` and `nexus-plugins --json` for plugin inspection.
+- Added the v1 policy-gated automation platform with named action registration, dry-run execution, confirmation boundaries, and platform audit logging.
+- Added `docs/platform.md` documenting the plugin and automation architecture.
+- Added focused tests for plugin registration, deterministic action ordering, dry-run behavior, and confirmation blocking.
 - Historical observation storage through `nexus-observe`.
 - Deterministic historical trend detection for persistent CPU, memory, and disk pressure.
 - Structured diagnostic findings for resource pressure, failed systemd services, and available package updates.
@@ -33,16 +40,19 @@ All notable changes to NEXUS are documented here.
 - NEXUS now has a concrete first-run workflow: ask one command what needs attention instead of manually combining multiple Linux inspection commands.
 - The operational summary provides a compact read-only control-plane view before deeper diagnosis.
 - The scheduler can be installed as a user-owned systemd service without implicit activation.
-- The README now documents the user problem, expected answers, and the distinction between diagnosis, planning, and authorized mutation.
-- The repository now includes a dedicated practical usage manual so new users can understand commands before attempting system-changing operations.
+- The desktop UI now has dedicated investigation and telemetry surfaces instead of exposing diagnostics only through the CLI.
+- Third-party extensions have a stable API boundary rather than importing internal NEXUS implementation details.
+- Automation has a centralized authorization and audit boundary instead of relying on scattered command execution.
 
 ### Safety
 
-- Historical trend detection is observation-only and never executes remediation.
+- Historical trend detection and visualization are observation-only.
 - Diagnostic collection failures are surfaced as evidence rather than triggering automatic changes.
 - Incident creation does not authorize any operation.
 - Remediation proposals are planning-only.
 - `nexus diagnose` is read-only and never executes its proposed commands.
 - Operational summaries are read-only.
 - Scheduler installation writes only the user-owned unit; enabling and starting it require an explicit `--enable` request.
-- The usage guide explicitly separates read-only inspection, planning, and confirmation-gated mutation workflows.
+- Plugin registrations are named and capability-scoped; the plugin API provides no arbitrary shell interface.
+- Automation defaults to dry-run and requires explicit confirmation for registered mutating actions.
+- Platform execution writes structured audit records to `.nexus/platform-audit.jsonl`.
