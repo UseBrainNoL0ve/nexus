@@ -9,6 +9,7 @@ from nexus.doctor import overall_status, run_checks
 from nexus.packages.pacman import inspect_updates
 from nexus.scheduler.audit import read_entries
 from nexus.scheduler.engine import Scheduler
+from nexus.scheduler.install import DEFAULT_UNIT_PATH, enable_user_service, install_user_service
 from nexus.scheduler.models import ScheduledJob
 from nexus.scheduler.store import ScheduleStore
 from nexus.sensors.system import collect_snapshot
@@ -28,32 +29,26 @@ def _run_action(action: str) -> tuple[bool, str]:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="nexus-scheduler",
-        description="NEXUS recurring task scheduler",
-    )
+    parser = argparse.ArgumentParser(prog="nexus-scheduler", description="NEXUS recurring task scheduler")
     parser.add_argument("--store", type=Path, default=DEFAULT_STORE)
     sub = parser.add_subparsers(dest="command", required=True)
-
     add = sub.add_parser("add", help="create or replace a recurring job")
     add.add_argument("name")
     add.add_argument("--action", choices=ALLOWED_ACTIONS, required=True)
     add.add_argument("--every", type=int, required=True, metavar="SECONDS")
     add.add_argument("--no-notify", action="store_true")
-
     list_cmd = sub.add_parser("list", help="list configured jobs")
     list_cmd.add_argument("--json", action="store_true", help="emit machine-readable JSON")
-
     remove = sub.add_parser("remove", help="remove a job")
     remove.add_argument("name")
-
     run = sub.add_parser("run", help="run due jobs once")
     run.add_argument("--daemon", action="store_true", help="keep checking every 5 seconds")
     run.add_argument("--json", action="store_true", help="emit machine-readable JSON")
-
     history = sub.add_parser("history", help="show recent scheduler executions")
     history.add_argument("--limit", type=int, default=20)
     history.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    install = sub.add_parser("install", help="install the user-level systemd scheduler unit")
+    install.add_argument("--enable", action="store_true", help="enable and start the service after installation")
     return parser
 
 
@@ -88,36 +83,47 @@ def _print_history(limit: int, json_output: bool = False) -> int:
     return 0
 
 
+def _install_service(enable: bool) -> int:
+    path = install_user_service(DEFAULT_UNIT_PATH)
+    print(f"Installed user service: {path}")
+    print("The service is not started unless --enable is supplied.")
+    if not enable:
+        print("Next step: systemctl --user enable --now nexus-scheduler.service")
+        return 0
+    result = enable_user_service()
+    if result.return_code == 0:
+        print("NEXUS scheduler service enabled and started.")
+        return 0
+    print("Could not enable the service.")
+    if result.stderr:
+        print(result.stderr.strip())
+    return 1
+
+
 def main() -> int:
     args = build_parser().parse_args()
     store = ScheduleStore(args.store)
 
     if args.command == "add":
-        job = ScheduledJob(
-            name=args.name,
-            action=args.action,
-            interval_seconds=args.every,
-            notify=not args.no_notify,
-        )
+        job = ScheduledJob(name=args.name, action=args.action, interval_seconds=args.every, notify=not args.no_notify)
         store.add(job)
         print(f"Scheduled: {job.name} -> {job.action} every {job.interval_seconds}s")
         return 0
-
     if args.command == "list":
         return _print_jobs(store, args.json)
-
     if args.command == "remove":
         if not store.remove(args.name):
             print(f"Job not found: {args.name}")
             return 1
         print(f"Removed: {args.name}")
         return 0
-
     if args.command == "history":
         if args.limit < 1:
             print("History limit must be at least 1.")
             return 2
         return _print_history(args.limit, args.json)
+    if args.command == "install":
+        return _install_service(args.enable)
 
     scheduler = Scheduler(store=store, action_runner=_run_action)
     if args.daemon:
@@ -136,21 +142,13 @@ def main() -> int:
     results = scheduler.run_due()
     if args.json:
         print(json.dumps([
-            {
-                "job": job.name,
-                "action": job.action,
-                "success": success,
-                "message": message,
-                "last_run": job.last_run,
-            }
+            {"job": job.name, "action": job.action, "success": success, "message": message, "last_run": job.last_run}
             for job, success, message in results
         ], indent=2, sort_keys=True))
         return 0 if all(success for _, success, _ in results) else 1
-
     if not results:
         print("No scheduled jobs are due.")
         return 0
     for job, success, message in results:
-        status = "OK" if success else "FAIL"
-        print(f"[{status}] {job.name}: {message}")
+        print(f"[{('OK' if success else 'FAIL')}] {job.name}: {message}")
     return 0 if all(success for _, success, _ in results) else 1
