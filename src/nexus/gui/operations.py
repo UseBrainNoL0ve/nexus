@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from PySide6.QtWidgets import (
@@ -19,10 +20,11 @@ from nexus.doctor import overall_status, run_checks
 from nexus.reporting import snapshot_to_json
 from nexus.sensors.system import collect_snapshot
 from nexus.services.audit import read_audit_entries
+from nexus.summary import collect_summary, format_summary
 
 
 class OperationsPage(QFrame):
-    """GUI command center for the non-mutating NEXUS CLI operations."""
+    """GUI command center for non-mutating NEXUS operational workflows."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -34,7 +36,7 @@ class OperationsPage(QFrame):
         heading = QVBoxLayout()
         title = QLabel("Command Center")
         title.setObjectName("pageTitle")
-        subtitle = QLabel("Run NEXUS CLI operations without leaving the desktop interface")
+        subtitle = QLabel("Run NEXUS operational workflows without leaving the desktop interface")
         subtitle.setObjectName("subtitle")
         heading.addWidget(title)
         heading.addWidget(subtitle)
@@ -43,6 +45,7 @@ class OperationsPage(QFrame):
         grid = QGridLayout()
         grid.setSpacing(12)
         actions = (
+            ("Operational Summary", "nexus summary", self.show_summary),
             ("System Status", "nexus status", self.show_status),
             ("System Doctor", "nexus doctor", self.show_doctor),
             ("Automation Plan", "nexus automate", self.show_automation),
@@ -88,6 +91,10 @@ class OperationsPage(QFrame):
         output_layout.addWidget(self.output)
         layout.addWidget(output_frame, 1)
 
+    def show_summary(self) -> None:
+        payload = collect_summary()
+        self.output.setPlainText(format_summary(payload) + "\n\nRead-only operation. No system changes were made.")
+
     def show_status(self) -> None:
         snapshot = collect_snapshot()
         self.output.setPlainText(
@@ -116,33 +123,23 @@ class OperationsPage(QFrame):
         results = evaluate_rules(snapshot)
         proposals = plan_actions(results)
         lines = ["NEXUS automation plan (dry-run)", ""]
-        lines.extend(
-            f"[{('TRIGGER' if result.triggered else 'OK'):7}] {result.rule}: {result.message}"
-            for result in results
-        )
+        lines.extend(f"[{('TRIGGER' if result.triggered else 'OK'):7}] {result.rule}: {result.message}" for result in results)
         if proposals:
             lines.extend(("", "Action proposals:"))
             for proposal in proposals:
                 confirmation = "yes" if proposal.requires_confirmation else "no"
-                lines.extend(
-                    (
-                        f"- {proposal.action_id}: {proposal.action}",
-                        f"  Risk: {proposal.risk} | Confirmation required: {confirmation}",
-                        f"  Rationale: {proposal.rationale}",
-                    )
-                )
+                lines.extend((
+                    f"- {proposal.action_id}: {proposal.action}",
+                    f"  Risk: {proposal.risk} | Confirmation required: {confirmation}",
+                    f"  Rationale: {proposal.rationale}",
+                ))
         else:
             lines.extend(("", "No automation proposals are currently triggered."))
         lines.append("No actions were executed. This operation is observation-only.")
         self.output.setPlainText("\n".join(lines))
 
     def save_report(self) -> None:
-        path, _ = QFileDialog.getSaveFileName(
-            self,
-            "Save NEXUS health report",
-            str(Path.cwd() / "nexus-report.json"),
-            "JSON files (*.json)",
-        )
+        path, _ = QFileDialog.getSaveFileName(self, "Save NEXUS health report", str(Path.cwd() / "nexus-report.json"), "JSON files (*.json)")
         if not path:
             return
         snapshot = collect_snapshot()
