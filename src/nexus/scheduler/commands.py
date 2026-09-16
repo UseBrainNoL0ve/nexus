@@ -9,6 +9,7 @@ from nexus.doctor import overall_status, run_checks
 from nexus.packages.pacman import inspect_updates
 from nexus.scheduler.audit import read_entries
 from nexus.scheduler.engine import Scheduler
+from nexus.scheduler.install import DEFAULT_UNIT_PATH, enable_user_service, install_user_service
 from nexus.scheduler.models import ScheduledJob
 from nexus.scheduler.store import ScheduleStore
 from nexus.sensors.system import collect_snapshot
@@ -54,6 +55,9 @@ def build_parser() -> argparse.ArgumentParser:
     history = sub.add_parser("history", help="show recent scheduler executions")
     history.add_argument("--limit", type=int, default=20)
     history.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+
+    install = sub.add_parser("install", help="install the user-level systemd scheduler unit")
+    install.add_argument("--enable", action="store_true", help="enable and start the service after installation")
     return parser
 
 
@@ -88,6 +92,23 @@ def _print_history(limit: int, json_output: bool = False) -> int:
     return 0
 
 
+def _install_service(enable: bool) -> int:
+    path = install_user_service(DEFAULT_UNIT_PATH)
+    print(f"Installed user service: {path}")
+    print("The service is not started unless --enable is supplied.")
+    if not enable:
+        print("Next step: systemctl --user enable --now nexus-scheduler.service")
+        return 0
+    result = enable_user_service()
+    if result.return_code == 0:
+        print("NEXUS scheduler service enabled and started.")
+        return 0
+    print("Could not enable the service.")
+    if result.stderr:
+        print(result.stderr.strip())
+    return 1
+
+
 def main() -> int:
     args = build_parser().parse_args()
     store = ScheduleStore(args.store)
@@ -118,6 +139,9 @@ def main() -> int:
             print("History limit must be at least 1.")
             return 2
         return _print_history(args.limit, args.json)
+
+    if args.command == "install":
+        return _install_service(args.enable)
 
     scheduler = Scheduler(store=store, action_runner=_run_action)
     if args.daemon:
