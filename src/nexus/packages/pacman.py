@@ -47,7 +47,7 @@ def inspect_updates(runner: CommandRunner | None = None) -> list[PackageUpdate]:
     updates: list[PackageUpdate] = []
     for line in completed.stdout.splitlines():
         parts = line.split()
-        if len(parts) != 5 or parts[3] != "->":
+        if len(parts) != 4 or parts[2] != "->":
             continue
 
         repository, name = parts[0].split("/", 1) if "/" in parts[0] else ("unknown", parts[0])
@@ -55,7 +55,7 @@ def inspect_updates(runner: CommandRunner | None = None) -> list[PackageUpdate]:
             PackageUpdate(
                 name=name,
                 current_version=parts[1],
-                available_version=parts[4],
+                available_version=parts[3],
                 repository=repository,
             )
         )
