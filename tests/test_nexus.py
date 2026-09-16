@@ -1,5 +1,6 @@
 import unittest
 
+from nexus.automation.planner import plan_actions
 from nexus.automation.rules import evaluate_rules
 from nexus.core.models import CpuSnapshot, DiskSnapshot, MemorySnapshot, NetworkInterface, SystemSnapshot
 from nexus.doctor import run_checks
@@ -41,6 +42,18 @@ class NEXUSTests(unittest.TestCase):
     def test_automation_is_quiet_for_healthy_snapshot(self):
         results = evaluate_rules(self.snapshot())
         self.assertTrue(all(not item.triggered for item in results))
+
+    def test_action_planner_requires_confirmation(self):
+        results = evaluate_rules(self.snapshot(disk=90.0))
+        proposals = plan_actions(results)
+        self.assertEqual(len(proposals), 1)
+        self.assertEqual(proposals[0].action_id, "cleanup-analysis")
+        self.assertEqual(proposals[0].risk, "low")
+        self.assertTrue(proposals[0].requires_confirmation)
+
+    def test_action_planner_ignores_non_triggered_rules(self):
+        results = evaluate_rules(self.snapshot())
+        self.assertEqual(plan_actions(results), [])
 
 
 if __name__ == "__main__":
