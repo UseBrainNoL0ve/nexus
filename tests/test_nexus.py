@@ -1,5 +1,6 @@
 import unittest
 
+from nexus.automation.rules import evaluate_rules
 from nexus.core.models import CpuSnapshot, DiskSnapshot, MemorySnapshot, NetworkInterface, SystemSnapshot
 from nexus.doctor import run_checks
 from nexus.reporting import snapshot_to_json
@@ -30,6 +31,16 @@ class NEXUSTests(unittest.TestCase):
     def test_report_is_json(self):
         payload = snapshot_to_json(self.snapshot())
         self.assertIn('"hostname": "test-host"', payload)
+
+    def test_automation_triggers_disk_pressure(self):
+        results = evaluate_rules(self.snapshot(disk=90.0))
+        disk = next(item for item in results if item.rule == "disk-pressure")
+        self.assertTrue(disk.triggered)
+        self.assertEqual(disk.action, "propose-cleanup-analysis")
+
+    def test_automation_is_quiet_for_healthy_snapshot(self):
+        results = evaluate_rules(self.snapshot())
+        self.assertTrue(all(not item.triggered for item in results))
 
 
 if __name__ == "__main__":
