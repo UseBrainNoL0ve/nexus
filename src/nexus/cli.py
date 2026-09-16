@@ -6,6 +6,7 @@ from nexus.automation.rules import evaluate_rules
 from nexus.core.models import SystemSnapshot
 from nexus.doctor import run_checks
 from nexus.packages.actions import plan_package_updates
+from nexus.packages.engine import execute_package_update
 from nexus.packages.pacman import PackageManagerError, inspect_updates
 from nexus.reporting import snapshot_to_json
 from nexus.sensors.system import collect_snapshot
@@ -112,7 +113,7 @@ def _inspect_packages() -> tuple[int, list]:
     return 0, updates
 
 
-def _plan_package_updates() -> int:
+def _plan_package_updates(confirm: bool) -> int:
     print("NEXUS package update plan")
     code, updates = _inspect_packages()
     if code != 0:
@@ -128,8 +129,26 @@ def _plan_package_updates() -> int:
         print(f"    Risk: {proposal.risk} | Confirmation required: yes")
         print(f"    Command: {' '.join(proposal.command)}")
 
-    print("No packages were changed. Planning is observation-only.")
-    return 0
+    if not confirm:
+        print("No packages were changed. Use --confirm only after reviewing the plan.")
+        return 0
+
+    print("Executing confirmed package update plan...")
+    failures = 0
+    for proposal in proposals:
+        result = execute_package_update(proposal, confirmed=True)
+        if result.return_code == 0:
+            print(f"  OK  {proposal.repository}/{proposal.package}")
+            continue
+
+        failures += 1
+        print(f"  FAIL {proposal.repository}/{proposal.package}")
+        if result.return_code is not None:
+            print(f"       return code: {result.return_code}")
+        if result.stderr:
+            print(f"       error: {result.stderr.strip()}")
+
+    return 1 if failures else 0
 
 
 def _print_service_action(service: str, action: str, dry_run: bool, confirm: bool) -> int:
@@ -201,9 +220,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     packages = sub.add_parser("packages", help="inspect or plan pacman updates")
     package_actions = packages.add_subparsers(dest="package_action")
-    package_actions.add_parser(
+    update = package_actions.add_parser(
         "update",
         help="plan available package updates without modifying packages",
+    )
+    update.add_argument(
+        "--confirm",
+        action="store_true",
+        help="explicitly authorize execution of the reviewed package update plan",
     )
 
     service = sub.add_parser("service", help="plan or execute a systemd service action")
@@ -228,7 +252,7 @@ def main() -> int:
 
     if args.command == "packages":
         if args.package_action == "update":
-            return _plan_package_updates()
+            return _plan_package_updates(args.confirm)
         return _inspect_packages()[0]
 
     if args.command == "service":
