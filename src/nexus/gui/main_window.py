@@ -84,7 +84,7 @@ class MainWindow(QMainWindow):
         readonly = QLabel("READ-ONLY MODE")
         readonly.setObjectName("readonlyBadge")
         side.addWidget(readonly)
-        root_layout.addWidget(side)
+        root_layout.addWidget(sidebar)
 
         content = QWidget()
         content_layout = QVBoxLayout(content)
@@ -176,6 +176,7 @@ class MainWindow(QMainWindow):
             QFrame#metricCard { padding: 5px; }
             QLabel#metricValue { font-size: 27px; font-weight: 700; }
             QLabel#healthBadge { background: #17261f; color: #71d39b; border: 1px solid #28553e; border-radius: 16px; padding: 7px 12px; font-weight: 700; }
+            QLabel#healthBadgeWarning { background: #302718; color: #f0bd70; border: 1px solid #6b4b22; border-radius: 16px; padding: 7px 12px; font-weight: 700; }
             QLabel#healthDetails { color: #b8c1ce; line-height: 1.5; }
             QLabel#liveText { color: #71d39b; font-weight: 700; }
             QLabel#readonlyBadge { color: #7f8a9a; border: 1px solid #29313d; border-radius: 8px; padding: 6px; }
