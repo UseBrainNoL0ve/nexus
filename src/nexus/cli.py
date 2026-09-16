@@ -5,6 +5,7 @@ from nexus.automation.planner import plan_actions
 from nexus.automation.rules import evaluate_rules
 from nexus.core.models import SystemSnapshot
 from nexus.doctor import run_checks
+from nexus.packages.pacman import PackageManagerError, inspect_updates
 from nexus.reporting import snapshot_to_json
 from nexus.sensors.system import collect_snapshot
 from nexus.services.actions import plan_service_action
@@ -88,6 +89,28 @@ def _print_services() -> int:
     return 0
 
 
+def _print_packages() -> int:
+    print("NEXUS package updates (read-only)")
+    try:
+        updates = inspect_updates()
+    except PackageManagerError as exc:
+        print(f"Package inspection failed: {exc}")
+        return 1
+
+    if not updates:
+        print("No pending package updates reported by pacman.")
+        return 0
+
+    print(f"Updates: {len(updates)}")
+    for update in updates:
+        print(
+            f"  - {update.repository}/{update.name}: "
+            f"{update.current_version} -> {update.available_version}"
+        )
+    print("No packages were changed.")
+    return 0
+
+
 def _print_service_action(service: str, action: str, dry_run: bool, confirm: bool) -> int:
     try:
         proposal = plan_service_action(service, action)
@@ -154,6 +177,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("doctor", help="run non-destructive health checks")
     sub.add_parser("automate", help="evaluate automation rules in dry-run mode")
     sub.add_parser("services", help="inspect systemd services without modifying them")
+    sub.add_parser("packages", help="inspect available pacman updates without modifying packages")
 
     service = sub.add_parser("service", help="plan or execute a systemd service action")
     service.add_argument("action", choices=("start", "stop", "restart"))
@@ -174,6 +198,9 @@ def main() -> int:
 
     if args.command == "services":
         return _print_services()
+
+    if args.command == "packages":
+        return _print_packages()
 
     if args.command == "service":
         return _print_service_action(args.service, args.action, args.dry_run, args.confirm)
