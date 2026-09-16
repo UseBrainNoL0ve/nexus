@@ -2,6 +2,8 @@ import argparse
 import json
 
 from nexus.diagnostics.engine import collect_diagnostics
+from nexus.diagnostics.incidents import build_incidents
+from nexus.diagnostics.remediation import build_remediation_plan
 from nexus.sensors.system import collect_snapshot
 
 
@@ -18,11 +20,16 @@ def main() -> int:
     args = build_parser().parse_args()
     snapshot = collect_snapshot()
     findings, errors = collect_diagnostics(snapshot)
+    incidents = build_incidents(findings)
+    remediation = build_remediation_plan(findings)
 
     if args.json:
         print(json.dumps({
             "finding_count": len(findings),
             "findings": [finding.to_dict() for finding in findings],
+            "incident_count": len(incidents),
+            "incidents": [incident.to_dict() for incident in incidents],
+            "remediation_steps": [step.to_dict() for step in remediation],
             "collection_errors": errors,
             "read_only": True,
         }, indent=2, sort_keys=True))
@@ -39,6 +46,24 @@ def main() -> int:
             print(f"  Evidence:       {finding.evidence}")
             print(f"  Recommendation: {finding.recommendation}")
             print(f"  Confirmation:   {confirmation}")
+
+    print()
+    print(f"Incidents: {len(incidents)}")
+    for incident in incidents:
+        print(f"  - {incident.id}: {incident.title}")
+        print(f"    Summary: {incident.summary}")
+
+    print()
+    print("Remediation proposals (not executed):")
+    if not remediation:
+        print("  - none")
+    for step in remediation:
+        confirmation = "yes" if step.requires_confirmation else "no"
+        print(f"  - {step.action}")
+        print(f"    Risk: {step.risk} | Confirmation required: {confirmation}")
+        print(f"    Reason: {step.reason}")
+        if step.command:
+            print(f"    Proposed command: {step.command}")
 
     if errors:
         print("Collection warnings:")
