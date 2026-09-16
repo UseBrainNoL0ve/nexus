@@ -1,119 +1,132 @@
 # Changelog
 
-All notable changes to NEXUS are documented here.
+All notable NEXUS changes are documented here.
 
-## [0.6.0-alpha] - 2026-09-16
+The changelog records **project milestones**, while package version metadata may remain on an earlier alpha version during active architectural development. See `pyproject.toml` for the version currently published by the package metadata.
 
-### Added
+## [0.6.0-alpha] — 2026-09-16
 
-- Unified read-only operational summary across system health, services, package updates, and scheduler state.
-- `nexus summary` human-readable operational overview.
-- `nexus summary --json` machine-readable operational overview for scripts and future integrations.
-- Command Center integration for the unified operational summary.
-- User-level systemd scheduler service generation using the active Python environment.
-- `nexus-scheduler install` to install the scheduler unit without starting it.
-- `nexus-scheduler install --enable` for explicit user-service enable/start.
-- Dedicated tests for summary aggregation and scheduler service generation.
-- Expanded project documentation around the observe → diagnose → plan → confirm → execute → audit operating model.
+### Operational platform
+
+- Added a unified read-only operational summary combining system health, systemd state, package updates, and scheduler state.
+- Added `nexus summary` for a human-readable operational overview.
+- Added `nexus summary --json` for machine-readable integrations and automation.
+- Added operational-summary presentation to the desktop Command Center.
+
+### Scheduler
+
+- Added generation of a user-level systemd scheduler service using the active Python environment.
+- Added `nexus-scheduler install` without implicit activation.
+- Added `nexus-scheduler install --enable` for explicit user-service activation.
+
+### Engineering
+
+- Added dedicated tests for summary aggregation and scheduler service generation.
+- Expanded architecture documentation around observation, diagnosis, planning, confirmation, execution, and audit boundaries.
 
 ### Safety
 
-- The operational summary is strictly read-only.
-- Scheduler installation writes only the user-owned systemd unit and does not enable/start it unless explicitly requested.
-- Scheduled actions remain restricted to the existing allow-list.
+- Operational summaries remain strictly read-only.
+- Scheduler installation writes only the user-owned service unit unless explicit activation is requested.
+- Scheduled operations remain restricted to the built-in allow-list.
 - No arbitrary shell execution was introduced.
 
-## [0.5.0-alpha] - 2026-09-16
+---
 
-### Added
+## [0.5.0-alpha] — 2026-09-16
 
-- Functional desktop navigation across Dashboard, Services, Packages, Doctor, Scheduler, and History.
-- Read-only systemd service detail view backed by live inspection.
-- Read-only pacman update detail view backed by live inspection.
-- Dedicated Doctor health-check view.
-- Scheduler configuration view backed by the persisted schedule store.
-- Scheduler execution history view backed by the scheduler audit log.
-- Reusable read-only GUI detail page component with explicit refresh controls.
-- Active navigation state and consistent NEXUS dark visual language across pages.
-- Richer dashboard presentation with icon-led metric cards, system identity telemetry, live monitor status, and refined navigation branding.
-- Interactive visual states for navigation, health badges, refresh controls, metric cards, and read-only mode.
-- Background dashboard worker so telemetry collection no longer blocks the Qt event loop.
-- Near-real-time dashboard refresh with visible scan state and refresh-cycle telemetry.
-- Interactive service management with explicit confirmation for start, stop, and restart.
-- Interactive package update management with explicit per-package confirmation.
-- Service and package tables with selectable rows, state columns, and action controls.
+### Desktop operations console
+
+- Added functional navigation across Dashboard, Services, Packages, Doctor, Scheduler, and History.
+- Added read-only systemd service detail views.
+- Added read-only pacman update detail views.
+- Added a dedicated Doctor health-check view.
+- Added scheduler configuration and execution-history views.
+- Added reusable read-only GUI detail-page components.
+- Added active navigation state and a consistent NEXUS dark visual language.
+- Added live dashboard refresh with background telemetry collection.
+- Added service management with explicit confirmation for start, stop, and restart.
+- Added package update management with explicit per-package confirmation.
+- Added selectable service and package tables with state information.
 
 ### Safety
 
-- Service mutations remain behind the existing NEXUS confirmation-gated action engine.
-- Package mutations remain behind the existing confirmation-gated package engine.
+- GUI service and package mutations use the existing confirmation-gated engines.
 - The GUI does not expose arbitrary shell execution.
-- Background telemetry is observation-only and does not mutate system state.
-- Detail-page failures are contained in the page view instead of terminating the desktop application.
-- Visual enhancements do not change the underlying system command safety model.
+- Background telemetry remains observation-only.
+- Detail-page failures are contained within the affected page.
+- Visual changes do not bypass core safety constraints.
 
-## [0.4.0-alpha] - 2026-09-16
+---
 
-### Added
+## [0.4.0-alpha] — 2026-09-16
 
-- JSON-backed recurring scheduler for user-owned NEXUS jobs.
-- `nexus-scheduler add` for creating recurring jobs with explicit intervals.
-- `nexus-scheduler list` and `nexus-scheduler remove` for schedule management.
-- `nexus-scheduler run` for one-shot execution of due jobs.
-- `nexus-scheduler run --daemon` for a lightweight foreground scheduler loop.
-- Safe built-in scheduled actions for health checks and package inspection.
-- Linux desktop notifications through `notify-send` when available.
-- Injectable scheduler action runners and notification runners for deterministic tests.
-- Scheduler model and persistence unit tests.
+### Scheduler
+
+- Added persistent JSON-backed recurring scheduler jobs.
+- Added `nexus-scheduler add`, `list`, and `remove`.
+- Added one-shot due-job execution through `nexus-scheduler run`.
+- Added foreground daemon mode through `nexus-scheduler run --daemon`.
+- Added allow-listed health-check and package-inspection actions.
+- Added best-effort Linux desktop notifications through `notify-send` when available.
+- Added injectable scheduler action and notification runners for deterministic tests.
 
 ### Safety
 
-- Scheduled jobs can only invoke allow-listed NEXUS actions; arbitrary shell commands are not supported.
+- Scheduler jobs cannot invoke arbitrary shell commands.
+- Scheduled package work is read-only inspection.
 - The scheduler does not automatically install packages or modify services.
-- Package scheduling is read-only inspection through `pacman -Qu`.
 - Schedules are stored as user-owned JSON under `.nexus/schedules.json`.
-- Desktop notifications are best-effort and do not affect scheduled action execution.
 
-## [0.2.0-alpha] - 2026-09-16
+---
 
-### Added
+## [0.2.0-alpha] — 2026-09-16
 
-- Observation-only automation rule engine.
-- Disk-pressure and memory-pressure rules.
-- `nexus automate` dry-run command.
-- Read-only systemd service inspection.
-- Safe systemd service action planning for start, stop, and restart.
-- Explicit confirmation gate for service action execution.
-- Injectable command runner for deterministic execution tests.
-- JSON Lines audit logging for blocked and attempted service actions.
-- Automatic `.nexus/audit.jsonl` recording from the service CLI.
-- `nexus history` command for inspecting recent service action audit entries.
-- Bounded audit history reader with missing-log and invalid-limit handling.
-- Read-only pacman update inspection through `nexus packages`.
-- Package update action planning through `nexus packages update`.
-- Explicit confirmation metadata for package update proposals.
-- Confirmation-gated package update execution engine.
-- Injectable package command runner for deterministic execution tests.
-- Explicit `nexus packages update --confirm` execution path.
-- Unit coverage for automation rules, service actions, audit records, and package inspection/planning/execution.
+### Controlled operations
+
+- Added observation-only automation rules.
+- Added disk-pressure and memory-pressure rules.
+- Added `nexus automate` dry-run evaluation.
+- Added systemd service inspection.
+- Added safe service action planning for start, stop, and restart.
+- Added explicit confirmation before service action execution.
+- Added injectable command runners for deterministic execution tests.
+- Added JSONL audit logging for service-action decisions and results.
+- Added `nexus history` for recent service-action audit records.
+- Added read-only pacman update inspection through `nexus packages`.
+- Added package update planning and confirmation-gated execution.
+- Added injectable package command runners and corresponding unit coverage.
 
 ### Safety
 
-- Automation rules only produce action proposals.
-- Service actions require explicit confirmation before execution.
-- Package inspection invokes `pacman -Qu` only; it never installs, removes, or upgrades packages.
-- Package update planning is observation-only until an explicit confirmation flag is supplied.
-- Package execution uses an argument sequence without a shell and supports injected test runners.
-- System commands can be replaced by deterministic test runners.
-- Audit records contain action metadata and execution results, not command output or environment secrets.
-- No package installation/removal or file deletion is performed without an explicit confirmation path.
+- Automation rules produce proposals rather than direct mutations.
+- Service changes require explicit confirmation.
+- Package inspection uses `pacman -Qu` without modifying packages.
+- Package execution requires an explicit confirmation path.
+- Controlled commands use argument sequences rather than shell strings.
+- Audit records contain operational metadata rather than command output or environment secrets.
 
-## [0.1.0-alpha] - 2026-09-16
+---
 
-### Added
+## [0.1.0-alpha] — 2026-09-16
 
-- Read-only Linux system status collection.
-- CPU, memory, disk, and network sensors.
-- Non-destructive `status`, `doctor`, and `report` commands.
-- JSON health-report export.
-- Unit tests and GitHub Actions CI.
+### Foundation
+
+- Added read-only Linux system status collection.
+- Added CPU, memory, disk, and network sensors.
+- Added non-destructive `status`, `doctor`, and `report` commands.
+- Added JSON health-report export.
+- Added unit tests and GitHub Actions CI.
+
+---
+
+## Upcoming
+
+The next milestones focus on operational depth rather than UI-only expansion:
+
+- Historical telemetry and trend analysis.
+- Deterministic anomaly detection and baseline generation.
+- Structured diagnostic incidents.
+- Explainable remediation recommendations.
+- Stable internal interfaces for future integrations.
+- Additional Linux distribution backends after the core abstractions are validated.
