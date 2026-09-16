@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 
+from nexus.automation.planner import plan_actions
 from nexus.automation.rules import evaluate_rules
 from nexus.core.models import SystemSnapshot
 from nexus.doctor import run_checks
@@ -19,18 +20,25 @@ def _print_status(snapshot: SystemSnapshot) -> None:
 
 def _print_automation(snapshot: SystemSnapshot) -> None:
     print("NEXUS automation plan (dry-run)")
-    triggered = False
-    for result in evaluate_rules(snapshot):
+    results = evaluate_rules(snapshot)
+
+    for result in results:
         status = "TRIGGER" if result.triggered else "OK"
         print(f"[{status:7}] {result.rule}: {result.message}")
-        if result.triggered:
-            print(f"          Proposed action: {result.action}")
-            triggered = True
 
-    if not triggered:
+    proposals = plan_actions(results)
+    if not proposals:
         print("No automation proposals are currently triggered.")
-    else:
-        print("No actions were executed. This command is observation-only.")
+        return
+
+    print("Action proposals:")
+    for proposal in proposals:
+        confirmation = "yes" if proposal.requires_confirmation else "no"
+        print(f"  - {proposal.action_id}: {proposal.action}")
+        print(f"    Risk: {proposal.risk} | Confirmation required: {confirmation}")
+        print(f"    Rationale: {proposal.rationale}")
+
+    print("No actions were executed. This command is observation-only.")
 
 
 def build_parser() -> argparse.ArgumentParser:
