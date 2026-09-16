@@ -20,7 +20,13 @@ from nexus.services.systemd import SystemdError, inspect_services
 AUDIT_PATH = Path(".nexus/audit.jsonl")
 
 
-def _print_status(snapshot: SystemSnapshot) -> None:
+def _print_status(snapshot: SystemSnapshot, json_output: bool = False) -> None:
+    if json_output:
+        payload = snapshot.to_dict()
+        payload["read_only"] = True
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return
+
     print(f"NEXUS {snapshot.platform} / {snapshot.kernel}")
     print(f"Host:    {snapshot.hostname}")
     print(f"CPU:     {snapshot.cpu.load_percent:.1f}% load / {snapshot.cpu.logical_cores} cores")
@@ -297,7 +303,14 @@ def _print_history(limit: int) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nexus", description="Linux system intelligence CLI")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("status", help="show a system snapshot")
+
+    status = sub.add_parser("status", help="show a system snapshot")
+    status.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON output",
+    )
+
     sub.add_parser("doctor", help="run non-destructive health checks")
     sub.add_parser("automate", help="evaluate automation rules in dry-run mode")
 
@@ -342,6 +355,11 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
 
+    if args.command == "status":
+        snapshot = collect_snapshot()
+        _print_status(snapshot, args.json)
+        return 0
+
     if args.command == "services":
         return _print_services(args.json)
 
@@ -363,10 +381,6 @@ def main() -> int:
         return _print_history(args.limit)
 
     snapshot = collect_snapshot()
-
-    if args.command == "status":
-        _print_status(snapshot)
-        return 0
 
     if args.command == "doctor":
         has_warnings = False
