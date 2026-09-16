@@ -2,13 +2,27 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMessageBox,
+    QPlainTextEdit,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+)
 
 from nexus.doctor import overall_status, run_checks
+from nexus.packages.actions import plan_package_updates
+from nexus.packages.engine import execute_package_update
 from nexus.packages.pacman import inspect_updates
 from nexus.scheduler.audit import read_entries
 from nexus.scheduler.store import ScheduleStore
 from nexus.sensors.system import collect_snapshot
+from nexus.services.actions import plan_service_action
+from nexus.services.engine import execute_service_action
 from nexus.services.systemd import inspect_services
 
 
@@ -22,11 +36,9 @@ class DetailPage(QFrame):
         super().__init__()
         self.setObjectName("detailPage")
         self.loader = loader
-
         layout = QVBoxLayout(self)
         layout.setContentsMargins(30, 26, 30, 24)
         layout.setSpacing(14)
-
         header = QHBoxLayout()
         heading = QVBoxLayout()
         title_label = QLabel(title)
@@ -37,12 +49,11 @@ class DetailPage(QFrame):
         heading.addWidget(subtitle_label)
         header.addLayout(heading)
         header.addStretch()
-        refresh = QPushButton("Refresh")
+        refresh = QPushButton("↻  Refresh")
         refresh.setObjectName("primaryButton")
         refresh.clicked.connect(self.refresh)
         header.addWidget(refresh)
         layout.addLayout(header)
-
         panel = QFrame()
         panel.setObjectName("panel")
         panel_layout = QVBoxLayout(panel)
@@ -51,7 +62,6 @@ class DetailPage(QFrame):
         self.output.setObjectName("detailOutput")
         panel_layout.addWidget(self.output)
         layout.addWidget(panel)
-
         self.refresh()
 
     def refresh(self) -> None:
@@ -59,6 +69,187 @@ class DetailPage(QFrame):
             self.output.setPlainText(self.loader())
         except Exception as exc:
             self.output.setPlainText(f"NEXUS could not load this view.\n\n{exc}")
+
+
+class ServicesPage(QFrame):
+    """Interactive systemd inventory with confirmation-gated actions."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setObjectName("detailPage")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(30, 26, 30, 24)
+        layout.setSpacing(14)
+        header = QHBoxLayout()
+        heading = QVBoxLayout()
+        title = QLabel("System Services")
+        title.setObjectName("pageTitle")
+        subtitle = QLabel("Inspect and control individual systemd units")
+        subtitle.setObjectName("subtitle")
+        heading.addWidget(title)
+        heading.addWidget(subtitle)
+        header.addLayout(heading)
+        header.addStretch()
+        refresh = QPushButton("↻  Refresh")
+        refresh.setObjectName("primaryButton")
+        refresh.clicked.connect(self.refresh)
+        header.addWidget(refresh)
+        layout.addLayout(header)
+
+        self.table = QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels(("SERVICE", "STATE", "ENABLED", "DESCRIPTION"))
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.verticalHeader().setVisible(False)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        layout.addWidget(self.table)
+
+        actions = QHBoxLayout()
+        self.action_label = QLabel("Select a service to manage it")
+        self.action_label.setObjectName("subtitle")
+        actions.addWidget(self.action_label)
+        actions.addStretch()
+        for action in ("start", "restart", "stop"):
+            button = QPushButton(action.capitalize())
+            button.setObjectName("secondaryButton")
+            button.clicked.connect(lambda checked=False, name=action: self.run_action(name))
+            actions.addWidget(button)
+        layout.addLayout(actions)
+        self.table.itemSelectionChanged.connect(self._selection_changed)
+        self.refresh()
+
+    def _selection_changed(self) -> None:
+        rows = self.table.selectionModel().selectedRows()
+        if rows:
+            unit = self.table.item(rows[0].row(), 0).text()
+            self.action_label.setText(f"Selected: {unit}")
+
+    def refresh(self) -> None:
+        try:
+            services = inspect_services()
+            self.table.setRowCount(len(services))
+            for row, service in enumerate(services):
+                values = (service.unit, service.active_state, service.enabled_state, service.description)
+                for column, value in enumerate(values):
+                    self.table.setItem(row, column, QTableWidgetItem(str(value)))
+            self.action_label.setText(f"{len(services)} services • select one to manage it")
+        except Exception as exc:
+            self.table.setRowCount(0)
+            self.action_label.setText(f"Could not load services: {exc}")
+
+    def run_action(self, action: str) -> None:
+        rows = self.table.selectionModel().selectedRows()
+        if not rows:
+            QMessageBox.information(self, "NEXUS", "Select a service first.")
+            return
+        service = self.table.item(rows[0].row(), 0).text()
+        proposal = plan_service_action(service, action)
+        answer = QMessageBox.question(
+            self,
+            f"Confirm {action}",
+            f"Run '{action}' for {service}?\n\nRisk: {proposal.risk}\n{proposal.rationale}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        result = execute_service_action(proposal, confirmed=True)
+        if result.return_code == 0:
+            QMessageBox.information(self, "NEXUS", f"{action.capitalize()} completed for {service}.")
+        else:
+            QMessageBox.warning(self, "NEXUS", result.stderr or f"{action.capitalize()} failed.")
+        self.refresh()
+
+
+class PackagesPage(QFrame):
+    """Interactive package update inventory with explicit confirmation."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setObjectName("detailPage")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(30, 26, 30, 24)
+        layout.setSpacing(14)
+        header = QHBoxLayout()
+        heading = QVBoxLayout()
+        title = QLabel("Package Updates")
+        title.setObjectName("pageTitle")
+        subtitle = QLabel("Review pacman updates and apply them individually")
+        subtitle.setObjectName("subtitle")
+        heading.addWidget(title)
+        heading.addWidget(subtitle)
+        header.addLayout(heading)
+        header.addStretch()
+        refresh = QPushButton("↻  Refresh")
+        refresh.setObjectName("primaryButton")
+        refresh.clicked.connect(self.refresh)
+        header.addWidget(refresh)
+        layout.addLayout(header)
+        self.table = QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels(("PACKAGE", "REPOSITORY", "CURRENT", "AVAILABLE"))
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.verticalHeader().setVisible(False)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        layout.addWidget(self.table)
+        actions = QHBoxLayout()
+        self.action_label = QLabel("Select an update to prepare it")
+        self.action_label.setObjectName("subtitle")
+        actions.addWidget(self.action_label)
+        actions.addStretch()
+        update_button = QPushButton("Update Selected")
+        update_button.setObjectName("secondaryButton")
+        update_button.clicked.connect(self.update_selected)
+        actions.addWidget(update_button)
+        layout.addLayout(actions)
+        self.table.itemSelectionChanged.connect(self._selection_changed)
+        self.refresh()
+
+    def _selection_changed(self) -> None:
+        rows = self.table.selectionModel().selectedRows()
+        if rows:
+            package = self.table.item(rows[0].row(), 0).text()
+            self.action_label.setText(f"Selected: {package}")
+
+    def refresh(self) -> None:
+        try:
+            updates = inspect_updates()
+            self.table.setRowCount(len(updates))
+            for row, update in enumerate(updates):
+                values = (update.name, update.repository, update.current_version, update.available_version)
+                for column, value in enumerate(values):
+                    self.table.setItem(row, column, QTableWidgetItem(str(value)))
+            self.action_label.setText(f"{len(updates)} updates available")
+        except Exception as exc:
+            self.table.setRowCount(0)
+            self.action_label.setText(f"Could not inspect packages: {exc}")
+
+    def update_selected(self) -> None:
+        rows = self.table.selectionModel().selectedRows()
+        if not rows:
+            QMessageBox.information(self, "NEXUS", "Select a package update first.")
+            return
+        updates = inspect_updates()
+        row = rows[0].row()
+        if row >= len(updates):
+            self.refresh()
+            return
+        proposal = plan_package_updates(updates)[row]
+        answer = QMessageBox.question(
+            self,
+            "Confirm package update",
+            f"Update {proposal.package}?\n\n{proposal.current_version} → {proposal.available_version}\nRepository: {proposal.repository}\n\nThis changes system packages and requires explicit confirmation.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        result = execute_package_update(proposal, confirmed=True)
+        if result.return_code == 0:
+            QMessageBox.information(self, "NEXUS", f"Updated {proposal.package} successfully.")
+        else:
+            QMessageBox.warning(self, "NEXUS", result.stderr or "Package update failed. Check your authentication setup.")
+        self.refresh()
 
 
 def services_text() -> str:
