@@ -100,7 +100,7 @@ def _install_service(enable: bool) -> int:
         print("Next step: systemctl --user enable --now nexus-scheduler.service")
         return 0
     result = enable_user_service()
-    if result.return_code == 0:
+    if result.returncode == 0:
         print("NEXUS scheduler service enabled and started.")
         return 0
     print("Could not enable the service.")
