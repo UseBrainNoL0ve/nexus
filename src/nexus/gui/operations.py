@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
@@ -122,7 +121,7 @@ class OperationsPage(QFrame):
             for result in results
         )
         if proposals:
-            lines.extend(("", "Action proposals:") for _ in [0])
+            lines.extend(("", "Action proposals:"))
             for proposal in proposals:
                 confirmation = "yes" if proposal.requires_confirmation else "no"
                 lines.extend(
