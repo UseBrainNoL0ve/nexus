@@ -2,7 +2,7 @@
 
 > A safety-first Linux system intelligence and automation platform for CachyOS.
 
-NEXUS starts as a local, read-only system intelligence CLI. It collects useful health metrics, diagnoses common conditions, and exports machine-readable reports. Mutating operations are intentionally postponed until a permission and confirmation model exists.
+NEXUS is a local Linux operations CLI that observes system health, inspects systemd services and pacman updates, proposes controlled actions, and records service-action audit events. Mutating operations remain explicitly confirmation-gated.
 
 ## Current status
 
@@ -12,12 +12,16 @@ NEXUS starts as a local, read-only system intelligence CLI. It collects useful h
 
 ## Features
 
-- `nexus status` — inspect CPU, memory, disk, and network state.
+- `nexus status` — inspect CPU load, memory, disk, and network state.
 - `nexus doctor` — run non-destructive health checks.
 - `nexus report` — export a JSON health report.
 - `nexus automate` — evaluate safe automation rules in dry-run mode.
-- Structured `src/` package layout.
-- Unit tests with the standard library test runner.
+- `nexus services` — inspect systemd service state without modifying services.
+- `nexus packages` — inspect available pacman updates without installing packages.
+- `nexus service start|stop|restart ...` — plan controlled service actions with an explicit confirmation gate.
+- `nexus history` — inspect recent service-action audit records.
+- JSON Lines audit logging under `.nexus/audit.jsonl` for blocked and attempted service actions.
+- Standard-library unit tests with injectable command runners for deterministic system integration tests.
 - GitHub Actions CI across Python 3.11–3.13.
 
 ## Architecture
@@ -28,11 +32,15 @@ flowchart TD
     CLI --> SENSORS[Sensors]
     CLI --> DOCTOR[Health Checks]
     CLI --> RULES[Automation Rules]
+    CLI --> SYSTEMD[systemd Inspection]
+    CLI --> PACMAN[pacman Inspection]
     SENSORS --> CPU[CPU]
     SENSORS --> MEM[Memory]
     SENSORS --> DISK[Disk]
     SENSORS --> NET[Network]
     RULES --> PLAN[Dry-run Action Proposals]
+    SYSTEMD --> ACTIONS[Confirmed Action Engine]
+    ACTIONS --> AUDIT[JSONL Audit Log]
     CORE --> REPORT[JSON Reports]
 ```
 
@@ -48,22 +56,40 @@ python -m pip install -e .
 nexus status
 nexus doctor
 nexus automate
+nexus services
+nexus packages
+nexus history
 nexus report --output reports/health.json
 ```
 
+`nexus packages` is read-only: it invokes `pacman -Qu` and never installs, removes, or upgrades packages.
+
+For service actions, inspect first and use dry-run mode before considering explicit confirmation:
+
+```bash
+nexus service restart NetworkManager.service --dry-run
+nexus history --limit 20
+```
+
+The action engine executes commands without a shell and records action metadata in `.nexus/audit.jsonl`. No command output or environment secrets are written to the audit log.
+
 ## Design principles
 
-1. **Safety first:** automation currently proposes actions but does not execute them.
-2. **Observable before automated:** future actions get a dry-run path before mutation.
-3. **Linux-native:** prefer `/proc`, `/sys`, systemd, and the host package manager where appropriate.
-4. **Testable:** sensors and decision logic stay separated from the CLI.
-5. **Auditable:** reports, logs, and conventional commits make behavior easy to inspect.
+1. **Safety first:** observation and planning come before mutation.
+2. **Explicit authorization:** service actions require a separate confirmation flag.
+3. **Observable before automated:** new actions receive a read-only or dry-run path first.
+4. **Linux-native:** prefer `/proc`, `/sys`, systemd, and pacman where appropriate.
+5. **Testable:** system integrations accept injectable command runners.
+6. **Auditable:** action decisions and results are persisted without recording command output or secrets.
+7. **Professional engineering:** focused commits, tests, documentation, and CI accompany feature work.
 
 ## Roadmap
 
 - [x] v0.1 system intelligence CLI
 - [x] v0.2 automation rule engine (dry-run)
-- [ ] v0.3 systemd and package-management integrations
+- [x] v0.2 systemd inspection and controlled action engine
+- [x] v0.2 pacman update inspection (read-only)
+- [ ] v0.3 package-management action planning
 - [ ] v0.4 scheduler and notification layer
 - [ ] v0.5 desktop GUI
 - [ ] v0.6 plugin system
