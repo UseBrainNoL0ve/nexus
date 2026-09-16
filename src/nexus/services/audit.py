@@ -25,6 +25,23 @@ def write_audit_entry(entry: AuditEntry, path: Path) -> None:
         handle.write(json.dumps(asdict(entry), sort_keys=True) + "\n")
 
 
+def read_audit_entries(path: Path, *, limit: int = 20) -> list[AuditEntry]:
+    """Read the most recent audit entries from a JSON Lines log."""
+    if limit < 1:
+        raise ValueError("limit must be at least 1")
+    if not path.exists():
+        return []
+
+    entries: list[AuditEntry] = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            entries.append(AuditEntry(**json.loads(line)))
+
+    return entries[-limit:]
+
+
 def new_audit_entry(
     *,
     service: str,
