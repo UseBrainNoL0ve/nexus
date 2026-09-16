@@ -2,6 +2,27 @@
 
 All notable changes to NEXUS are documented here.
 
+## [0.6.0-alpha] - 2026-09-16
+
+### Added
+
+- Unified read-only operational summary across system health, services, package updates, and scheduler state.
+- `nexus summary` human-readable operational overview.
+- `nexus summary --json` machine-readable operational overview for scripts and future integrations.
+- Command Center integration for the unified operational summary.
+- User-level systemd scheduler service generation using the active Python environment.
+- `nexus-scheduler install` to install the scheduler unit without starting it.
+- `nexus-scheduler install --enable` for explicit user-service enable/start.
+- Dedicated tests for summary aggregation and scheduler service generation.
+- Expanded project documentation around the observe → diagnose → plan → confirm → execute → audit operating model.
+
+### Safety
+
+- The operational summary is strictly read-only.
+- Scheduler installation writes only the user-owned systemd unit and does not enable/start it unless explicitly requested.
+- Scheduled actions remain restricted to the existing allow-list.
+- No arbitrary shell execution was introduced.
+
 ## [0.5.0-alpha] - 2026-09-16
 
 ### Added
