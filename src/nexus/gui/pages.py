@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QVBoxLayout
 
 from nexus.doctor import overall_status, run_checks
 from nexus.packages.pacman import inspect_updates
@@ -79,7 +78,7 @@ def packages_text() -> str:
         return "System is up to date according to pacman."
     lines = [f"{len(updates)} package update(s) available", ""]
     for update in updates:
-        lines.append(f"{update.name}  {update.current_version} -> {update.new_version}")
+        lines.append(f"{update.name}  {update.current_version} -> {update.available_version}")
     return "\n".join(lines)
 
 
