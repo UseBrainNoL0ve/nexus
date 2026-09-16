@@ -7,6 +7,7 @@ from nexus.core.models import SystemSnapshot
 from nexus.doctor import run_checks
 from nexus.reporting import snapshot_to_json
 from nexus.sensors.system import collect_snapshot
+from nexus.services.systemd import SystemdError, inspect_services
 
 
 def _print_status(snapshot: SystemSnapshot) -> None:
@@ -41,12 +42,53 @@ def _print_automation(snapshot: SystemSnapshot) -> None:
     print("No actions were executed. This command is observation-only.")
 
 
+def _print_services() -> int:
+    print("NEXUS system services (read-only)")
+
+    try:
+        services = inspect_services()
+    except SystemdError as exc:
+        print(f"Systemd inspection failed: {exc}")
+        return 1
+
+    if not services:
+        print("No service units were found.")
+        return 0
+
+    running = [service for service in services if service.active_state == "active"]
+    failed = [service for service in services if service.active_state == "failed"]
+    stopped = [
+        service
+        for service in services
+        if service.active_state in {"inactive", "deactivating"}
+    ]
+    enabled = [
+        service
+        for service in services
+        if service.enabled_state in {"enabled", "enabled-runtime"}
+    ]
+
+    print(f"Services: {len(services)}")
+    print(f"Running:  {len(running)}")
+    print(f"Failed:   {len(failed)}")
+    print(f"Stopped:  {len(stopped)}")
+    print(f"Enabled:  {len(enabled)}")
+
+    if failed:
+        print("Failed services:")
+        for service in failed:
+            print(f"  - {service.unit}: {service.description}")
+
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nexus", description="Linux system intelligence CLI")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("status", help="show a system snapshot")
     sub.add_parser("doctor", help="run non-destructive health checks")
     sub.add_parser("automate", help="evaluate automation rules in dry-run mode")
+    sub.add_parser("services", help="inspect systemd services without modifying them")
     report = sub.add_parser("report", help="write a JSON health report")
     report.add_argument("--output", type=Path, default=Path("nexus-report.json"))
     return parser
@@ -54,6 +96,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
+
+    if args.command == "services":
+        return _print_services()
+
     snapshot = collect_snapshot()
 
     if args.command == "status":
