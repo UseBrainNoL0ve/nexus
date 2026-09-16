@@ -6,7 +6,7 @@ NEXUS starts as a local, read-only system intelligence CLI. It collects useful h
 
 ## Current status
 
-**Version:** 0.1.0-alpha  
+**Version:** 0.2.0-alpha  
 **Platform:** Linux (CachyOS-first)  
 **Python:** 3.11+
 
@@ -15,6 +15,7 @@ NEXUS starts as a local, read-only system intelligence CLI. It collects useful h
 - `nexus status` — inspect CPU, memory, disk, and network state.
 - `nexus doctor` — run non-destructive health checks.
 - `nexus report` — export a JSON health report.
+- `nexus automate` — evaluate safe automation rules in dry-run mode.
 - Structured `src/` package layout.
 - Unit tests with the standard library test runner.
 - GitHub Actions CI across Python 3.11–3.13.
@@ -26,10 +27,12 @@ flowchart TD
     CLI[CLI] --> CORE[Core Models]
     CLI --> SENSORS[Sensors]
     CLI --> DOCTOR[Health Checks]
+    CLI --> RULES[Automation Rules]
     SENSORS --> CPU[CPU]
     SENSORS --> MEM[Memory]
     SENSORS --> DISK[Disk]
     SENSORS --> NET[Network]
+    RULES --> PLAN[Dry-run Action Proposals]
     CORE --> REPORT[JSON Reports]
 ```
 
@@ -44,12 +47,13 @@ python -m pip install --upgrade pip
 python -m pip install -e .
 nexus status
 nexus doctor
+nexus automate
 nexus report --output reports/health.json
 ```
 
 ## Design principles
 
-1. **Safety first:** v0.1 is read-only.
+1. **Safety first:** automation currently proposes actions but does not execute them.
 2. **Observable before automated:** future actions get a dry-run path before mutation.
 3. **Linux-native:** prefer `/proc`, `/sys`, systemd, and the host package manager where appropriate.
 4. **Testable:** sensors and decision logic stay separated from the CLI.
@@ -58,7 +62,7 @@ nexus report --output reports/health.json
 ## Roadmap
 
 - [x] v0.1 system intelligence CLI
-- [ ] v0.2 automation rule engine
+- [x] v0.2 automation rule engine (dry-run)
 - [ ] v0.3 systemd and package-management integrations
 - [ ] v0.4 scheduler and notification layer
 - [ ] v0.5 desktop GUI
