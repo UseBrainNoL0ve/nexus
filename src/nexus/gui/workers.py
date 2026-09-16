@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QThread, Signal
 
 from nexus.doctor import run_checks
 from nexus.packages.pacman import inspect_updates
@@ -18,27 +18,18 @@ class DashboardData:
     updates: list[object]
 
 
-class DashboardWorker(QObject):
-    """Collect dashboard telemetry away from the Qt GUI thread."""
+class DashboardWorker(QThread):
+    """Run one dashboard telemetry scan on a dedicated Qt thread."""
 
-    finished = Signal(object)
+    data_ready = Signal(object)
     failed = Signal(str)
 
-    def __init__(self) -> None:
-        super().__init__()
-        # The worker owns its lifecycle inside the worker thread.  Deleting it
-        # from QThread.finished is unsafe because that signal fires after the
-        # worker thread's event loop has stopped processing deferred deletes.
-        self.finished.connect(self.deleteLater)
-        self.failed.connect(self.deleteLater)
-
-    @Slot()
     def run(self) -> None:
         try:
             snapshot = collect_snapshot()
             checks = run_checks(snapshot)
             services = inspect_services()
             updates = inspect_updates()
-            self.finished.emit(DashboardData(snapshot, checks, services, updates))
+            self.data_ready.emit(DashboardData(snapshot, checks, services, updates))
         except Exception as exc:
             self.failed.emit(str(exc))
