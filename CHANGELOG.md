@@ -13,13 +13,16 @@ All notable changes to NEXUS are documented here.
 - Safe systemd service action planning for start, stop, and restart.
 - Explicit confirmation gate for service action execution.
 - Injectable command runner for deterministic execution tests.
-- Unit coverage for triggered and non-triggered automation rules and service actions.
+- JSON Lines audit logging for blocked and attempted service actions.
+- Automatic `.nexus/audit.jsonl` recording from the service CLI.
+- Unit coverage for triggered and non-triggered automation rules, service actions, and audit records.
 
 ### Safety
 
 - Automation rules only produce action proposals.
 - Service actions require explicit confirmation before execution.
 - System commands are executed without a shell and can be replaced by a test runner.
+- Audit records contain action metadata and execution results, not command output or environment secrets.
 - No package installation/removal or file deletion is performed by the current action engine.
 
 ## [0.1.0-alpha] - 2026-09-16
