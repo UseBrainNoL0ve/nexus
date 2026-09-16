@@ -150,6 +150,10 @@ nexus-gui
 
 The scheduler accepts only allow-listed NEXUS actions and does not support arbitrary shell commands.
 
+## Detailed usage guide
+
+For a command-by-command manual with installation, output interpretation, JSON usage, historical observations, systemd actions, package operations, scheduler usage, audit logs, troubleshooting workflows, safety boundaries, scripting, and a command cheat sheet, see **[docs/usage.md](docs/usage.md)**.
+
 ## Safety model
 
 1. **Observation first:** system state is collected before a decision is made.
@@ -179,7 +183,7 @@ src/nexus/
 └── gui/             PySide6 operations interface
 ```
 
-See `docs/architecture.md` for the detailed execution model and `docs/diagnostics.md` for the diagnostic and incident pipeline.
+See `docs/architecture.md` for the detailed execution model, `docs/diagnostics.md` for the diagnostic and incident pipeline, and `docs/usage.md` for the practical command manual.
 
 ## Roadmap
 
