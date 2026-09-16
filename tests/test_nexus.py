@@ -74,8 +74,8 @@ class NEXUSTests(unittest.TestCase):
                 command,
                 0,
                 stdout=(
-                    "NetworkManager.service enabled\n"
-                    "example.service disabled\n"
+                    "NetworkManager.service enabled enabled\n"
+                    "example.service disabled disabled\n"
                 ),
                 stderr="",
             )
