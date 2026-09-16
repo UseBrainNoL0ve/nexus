@@ -24,6 +24,14 @@ class DashboardWorker(QObject):
     finished = Signal(object)
     failed = Signal(str)
 
+    def __init__(self) -> None:
+        super().__init__()
+        # The worker owns its lifecycle inside the worker thread.  Deleting it
+        # from QThread.finished is unsafe because that signal fires after the
+        # worker thread's event loop has stopped processing deferred deletes.
+        self.finished.connect(self.deleteLater)
+        self.failed.connect(self.deleteLater)
+
     @Slot()
     def run(self) -> None:
         try:
