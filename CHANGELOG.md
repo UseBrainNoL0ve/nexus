@@ -15,6 +15,8 @@ All notable changes to NEXUS are documented here.
 - Injectable command runner for deterministic execution tests.
 - JSON Lines audit logging for blocked and attempted service actions.
 - Automatic `.nexus/audit.jsonl` recording from the service CLI.
+- `nexus history` command for inspecting recent service action audit entries.
+- Bounded audit history reader with missing-log and invalid-limit handling.
 - Unit coverage for triggered and non-triggered automation rules, service actions, and audit records.
 
 ### Safety
