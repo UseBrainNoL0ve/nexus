@@ -9,7 +9,12 @@ from nexus.packages.pacman import PackageUpdate
 class PackageEngineTests(unittest.TestCase):
     def proposal(self):
         return plan_package_updates([
-            PackageUpdate("linux", "core", "6.17-1", "6.17-2"),
+            PackageUpdate(
+                name="linux",
+                current_version="6.17-1",
+                available_version="6.17-2",
+                repository="core",
+            ),
         ])[0]
 
     def test_unconfirmed_update_does_not_execute(self):
