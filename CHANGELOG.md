@@ -2,6 +2,34 @@
 
 All notable changes to NEXUS are documented here.
 
+## [Unreleased] - 2026-09-16
+
+### Added
+
+- Historical observation storage through `nexus-observe`.
+- Deterministic historical trend detection for persistent CPU, memory, and disk pressure.
+- Structured diagnostic findings for resource pressure, failed systemd services, and available package updates.
+- `nexus-diagnose` read-only diagnostic CLI with text and JSON output.
+- Structured incident modeling for grouping related findings.
+- Explainable remediation proposals containing evidence, rationale, risk, command representation, and confirmation metadata.
+- Focused unit coverage for historical detection, diagnostics, incident grouping, and remediation planning.
+
+### Safety
+
+- Historical trend detection is observation-only and never executes remediation.
+- Diagnostic collection failures are surfaced as evidence rather than triggering automatic changes.
+- Incident creation does not authorize any operation.
+- Remediation proposals are planning-only.
+- Potentially mutating package and service operations remain behind explicit confirmation gates.
+- High-level diagnostic features do not accept arbitrary shell commands.
+
+### Documentation
+
+- README updated to describe the observation → diagnosis → incident → planning pipeline.
+- Architecture documentation expanded with layer responsibilities and mutation boundaries.
+- Contributor guidance expanded with testing, documentation, and safety expectations.
+- Dedicated diagnostic architecture documentation added.
+
 ## [0.5.0-alpha] - 2026-09-16
 
 ### Added
