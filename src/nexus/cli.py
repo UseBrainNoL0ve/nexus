@@ -12,6 +12,9 @@ from nexus.services.engine import execute_service_action
 from nexus.services.systemd import SystemdError, inspect_services
 
 
+AUDIT_PATH = Path(".nexus/audit.jsonl")
+
+
 def _print_status(snapshot: SystemSnapshot) -> None:
     print(f"NEXUS {snapshot.platform} / {snapshot.kernel}")
     print(f"Host:    {snapshot.hostname}")
@@ -100,12 +103,22 @@ def _print_service_action(service: str, action: str, dry_run: bool, confirm: boo
     print(f"Reason:  {proposal.rationale}")
     print()
 
-    if dry_run or not confirm:
+    if dry_run:
+        print("No changes were made.")
+        print("Dry-run only; confirmation required before execution.")
+        execute_service_action(proposal, confirmed=False, audit_path=AUDIT_PATH)
+        return 0
+
+    result = execute_service_action(
+        proposal,
+        confirmed=confirm,
+        audit_path=AUDIT_PATH,
+    )
+    if not result.executed:
         print("No changes were made.")
         print("Confirmation required before execution.")
         return 0
 
-    result = execute_service_action(proposal, confirmed=True)
     if result.return_code == 0:
         print("Action completed successfully.")
         return 0
