@@ -15,6 +15,7 @@ from nexus.services.actions import plan_service_action
 from nexus.services.audit import read_audit_entries
 from nexus.services.engine import execute_service_action
 from nexus.services.systemd import SystemdError, inspect_services
+from nexus.summary import collect_summary, format_summary
 
 
 AUDIT_PATH = Path(".nexus/audit.jsonl")
@@ -40,16 +41,7 @@ def _print_doctor(snapshot: SystemSnapshot, json_output: bool = False) -> int:
     status = overall_status(checks)
 
     if json_output:
-        print(
-            json.dumps(
-                {
-                    "status": status,
-                    "checks": checks_to_dict(checks),
-                    "read_only": True,
-                },
-                indent=2,
-            )
-        )
+        print(json.dumps({"status": status, "checks": checks_to_dict(checks), "read_only": True}, indent=2))
         return 1 if status == "warn" else 0
 
     for check in checks:
@@ -60,7 +52,6 @@ def _print_doctor(snapshot: SystemSnapshot, json_output: bool = False) -> int:
 def _print_automation(snapshot: SystemSnapshot) -> None:
     print("NEXUS automation plan (dry-run)")
     results = evaluate_rules(snapshot)
-
     for result in results:
         status = "TRIGGER" if result.triggered else "OK"
         print(f"[{status:7}] {result.rule}: {result.message}")
@@ -76,7 +67,6 @@ def _print_automation(snapshot: SystemSnapshot) -> None:
         print(f"  - {proposal.action_id}: {proposal.action}")
         print(f"    Risk: {proposal.risk} | Confirmation required: {confirmation}")
         print(f"    Rationale: {proposal.rationale}")
-
     print("No actions were executed. This command is observation-only.")
 
 
@@ -85,18 +75,7 @@ def _print_services(json_output: bool = False) -> int:
         services = inspect_services()
     except SystemdError as exc:
         if json_output:
-            print(
-                json.dumps(
-                    {
-                        "service_manager": "systemd",
-                        "services": [],
-                        "count": 0,
-                        "read_only": True,
-                        "error": str(exc),
-                    },
-                    indent=2,
-                )
-            )
+            print(json.dumps({"service_manager": "systemd", "services": [], "count": 0, "read_only": True, "error": str(exc)}, indent=2))
         else:
             print("NEXUS system services (read-only)")
             print(f"Systemd inspection failed: {exc}")
@@ -104,64 +83,36 @@ def _print_services(json_output: bool = False) -> int:
 
     running = [service for service in services if service.active_state == "active"]
     failed = [service for service in services if service.active_state == "failed"]
-    stopped = [
-        service
-        for service in services
-        if service.active_state in {"inactive", "deactivating"}
-    ]
-    enabled = [
-        service
-        for service in services
-        if service.enabled_state in {"enabled", "enabled-runtime"}
-    ]
+    stopped = [service for service in services if service.active_state in {"inactive", "deactivating"}]
+    enabled = [service for service in services if service.enabled_state in {"enabled", "enabled-runtime"}]
 
     if json_output:
-        print(
-            json.dumps(
-                {
-                    "service_manager": "systemd",
-                    "services": [
-                        {
-                            "unit": service.unit,
-                            "load_state": service.load_state,
-                            "active_state": service.active_state,
-                            "sub_state": service.sub_state,
-                            "description": service.description,
-                            "enabled_state": service.enabled_state,
-                        }
-                        for service in services
-                    ],
-                    "count": len(services),
-                    "summary": {
-                        "running": len(running),
-                        "failed": len(failed),
-                        "stopped": len(stopped),
-                        "enabled": len(enabled),
-                    },
-                    "read_only": True,
-                },
-                indent=2,
-            )
-        )
+        print(json.dumps({
+            "service_manager": "systemd",
+            "services": [
+                {"unit": service.unit, "load_state": service.load_state, "active_state": service.active_state,
+                 "sub_state": service.sub_state, "description": service.description, "enabled_state": service.enabled_state}
+                for service in services
+            ],
+            "count": len(services),
+            "summary": {"running": len(running), "failed": len(failed), "stopped": len(stopped), "enabled": len(enabled)},
+            "read_only": True,
+        }, indent=2))
         return 0
 
     print("NEXUS system services (read-only)")
-
     if not services:
         print("No service units were found.")
         return 0
-
     print(f"Services: {len(services)}")
     print(f"Running:  {len(running)}")
     print(f"Failed:   {len(failed)}")
     print(f"Stopped:  {len(stopped)}")
     print(f"Enabled:  {len(enabled)}")
-
     if failed:
         print("Failed services:")
         for service in failed:
             print(f"  - {service.unit}: {service.description}")
-
     return 0
 
 
@@ -170,57 +121,27 @@ def _inspect_packages(json_output: bool = False) -> tuple[int, list]:
         updates = inspect_updates()
     except PackageManagerError as exc:
         if json_output:
-            print(
-                json.dumps(
-                    {
-                        "package_manager": "pacman",
-                        "updates": [],
-                        "count": 0,
-                        "read_only": True,
-                        "error": str(exc),
-                    },
-                    indent=2,
-                )
-            )
+            print(json.dumps({"package_manager": "pacman", "updates": [], "count": 0, "read_only": True, "error": str(exc)}, indent=2))
         else:
             print("NEXUS package updates (read-only)")
             print(f"Package inspection failed: {exc}")
         return 1, []
 
     if json_output:
-        print(
-            json.dumps(
-                {
-                    "package_manager": "pacman",
-                    "updates": [
-                        {
-                            "repository": update.repository,
-                            "name": update.name,
-                            "current_version": update.current_version,
-                            "available_version": update.available_version,
-                        }
-                        for update in updates
-                    ],
-                    "count": len(updates),
-                    "read_only": True,
-                },
-                indent=2,
-            )
-        )
+        print(json.dumps({
+            "package_manager": "pacman",
+            "updates": [{"repository": u.repository, "name": u.name, "current_version": u.current_version, "available_version": u.available_version} for u in updates],
+            "count": len(updates), "read_only": True,
+        }, indent=2))
         return 0, updates
 
     print("NEXUS package updates (read-only)")
-
     if not updates:
         print("No pending package updates reported by pacman.")
         return 0, []
-
     print(f"Updates: {len(updates)}")
     for update in updates:
-        print(
-            f"  - {update.repository}/{update.name}: "
-            f"{update.current_version} -> {update.available_version}"
-        )
+        print(f"  - {update.repository}/{update.name}: {update.current_version} -> {update.available_version}")
     print("No packages were changed.")
     return 0, updates
 
@@ -232,7 +153,6 @@ def _plan_package_updates(confirm: bool) -> int:
         return code
     if not updates:
         return 0
-
     proposals = plan_package_updates(updates)
     print("Action proposals:")
     for proposal in proposals:
@@ -240,11 +160,9 @@ def _plan_package_updates(confirm: bool) -> int:
         print(f"    {proposal.current_version} -> {proposal.available_version}")
         print(f"    Risk: {proposal.risk} | Confirmation required: yes")
         print(f"    Command: {' '.join(proposal.command)}")
-
     if not confirm:
         print("No packages were changed. Use --confirm only after reviewing the plan.")
         return 0
-
     print("Executing confirmed package update plan...")
     failures = 0
     for proposal in proposals:
@@ -252,14 +170,12 @@ def _plan_package_updates(confirm: bool) -> int:
         if result.return_code == 0:
             print(f"  OK  {proposal.repository}/{proposal.package}")
             continue
-
         failures += 1
         print(f"  FAIL {proposal.repository}/{proposal.package}")
         if result.return_code is not None:
             print(f"       return code: {result.return_code}")
         if result.stderr:
             print(f"       error: {result.stderr.strip()}")
-
     return 1 if failures else 0
 
 
@@ -269,36 +185,19 @@ def _print_service_action(service: str, action: str, dry_run: bool, confirm: boo
     except ValueError as exc:
         print(f"Invalid service action: {exc}")
         return 2
-
-    print("NEXUS service action")
-    print()
-    print(f"Service: {proposal.service}")
-    print(f"Action:  {proposal.action}")
-    print(f"Risk:    {proposal.risk}")
-    print(f"Command: {' '.join(proposal.command)}")
-    print(f"Reason:  {proposal.rationale}")
-    print()
-
+    print("NEXUS service action\n")
+    print(f"Service: {proposal.service}\nAction:  {proposal.action}\nRisk:    {proposal.risk}\nCommand: {' '.join(proposal.command)}\nReason:  {proposal.rationale}\n")
     if dry_run:
-        print("No changes were made.")
-        print("Dry-run only; confirmation required before execution.")
+        print("No changes were made.\nDry-run only; confirmation required before execution.")
         execute_service_action(proposal, confirmed=False, audit_path=AUDIT_PATH)
         return 0
-
-    result = execute_service_action(
-        proposal,
-        confirmed=confirm,
-        audit_path=AUDIT_PATH,
-    )
+    result = execute_service_action(proposal, confirmed=confirm, audit_path=AUDIT_PATH)
     if not result.executed:
-        print("No changes were made.")
-        print("Confirmation required before execution.")
+        print("No changes were made.\nConfirmation required before execution.")
         return 0
-
     if result.return_code == 0:
         print("Action completed successfully.")
         return 0
-
     print("Action execution failed.")
     if result.return_code is not None:
         print(f"Return code: {result.return_code}")
@@ -313,7 +212,6 @@ def _print_history(limit: int) -> int:
     if not entries:
         print("No audit entries found.")
         return 0
-
     for entry in entries:
         status = entry.result
         if entry.return_code is not None:
@@ -325,71 +223,39 @@ def _print_history(limit: int) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nexus", description="Linux system intelligence CLI")
     sub = parser.add_subparsers(dest="command", required=True)
-
     status = sub.add_parser("status", help="show a system snapshot")
-    status.add_argument(
-        "--json",
-        action="store_true",
-        help="emit machine-readable JSON output",
-    )
-
+    status.add_argument("--json", action="store_true", help="emit machine-readable JSON output")
     doctor = sub.add_parser("doctor", help="run non-destructive health checks")
-    doctor.add_argument(
-        "--json",
-        action="store_true",
-        help="emit machine-readable JSON output",
-    )
+    doctor.add_argument("--json", action="store_true", help="emit machine-readable JSON output")
     sub.add_parser("automate", help="evaluate automation rules in dry-run mode")
-
     services = sub.add_parser("services", help="inspect systemd services without modifying them")
-    services.add_argument(
-        "--json",
-        action="store_true",
-        help="emit machine-readable JSON output",
-    )
-
+    services.add_argument("--json", action="store_true", help="emit machine-readable JSON output")
     packages = sub.add_parser("packages", help="inspect or plan pacman updates")
-    packages.add_argument(
-        "--json",
-        action="store_true",
-        help="emit machine-readable JSON output",
-    )
+    packages.add_argument("--json", action="store_true", help="emit machine-readable JSON output")
     package_actions = packages.add_subparsers(dest="package_action")
-    update = package_actions.add_parser(
-        "update",
-        help="plan available package updates without modifying packages",
-    )
-    update.add_argument(
-        "--confirm",
-        action="store_true",
-        help="explicitly authorize execution of the reviewed package update plan",
-    )
-
+    update = package_actions.add_parser("update", help="plan available package updates without modifying packages")
+    update.add_argument("--confirm", action="store_true", help="explicitly authorize execution of the reviewed package update plan")
     service = sub.add_parser("service", help="plan or execute a systemd service action")
     service.add_argument("action", choices=("start", "stop", "restart"))
     service.add_argument("service", help="systemd service unit, for example NetworkManager.service")
     service.add_argument("--dry-run", action="store_true", help="show the planned action without executing it")
     service.add_argument("--confirm", action="store_true", help="explicitly authorize execution of the planned action")
-
     history = sub.add_parser("history", help="show recent service action audit entries")
     history.add_argument("--limit", type=int, default=20, help="number of recent entries to show")
-
     report = sub.add_parser("report", help="write a JSON health report")
     report.add_argument("--output", type=Path, default=Path("nexus-report.json"))
+    summary = sub.add_parser("summary", help="show a unified read-only operational summary")
+    summary.add_argument("--json", action="store_true", help="emit machine-readable JSON output")
     return parser
 
 
 def main() -> int:
     args = build_parser().parse_args()
-
     if args.command == "status":
-        snapshot = collect_snapshot()
-        _print_status(snapshot, args.json)
+        _print_status(collect_snapshot(), args.json)
         return 0
-
     if args.command == "services":
         return _print_services(args.json)
-
     if args.command == "packages":
         if args.package_action == "update":
             if args.json:
@@ -397,29 +263,29 @@ def main() -> int:
                 return 2
             return _plan_package_updates(args.confirm)
         return _inspect_packages(args.json)[0]
-
     if args.command == "service":
         return _print_service_action(args.service, args.action, args.dry_run, args.confirm)
-
     if args.command == "history":
         if args.limit < 1:
             print("History limit must be at least 1.")
             return 2
         return _print_history(args.limit)
-
+    if args.command == "summary":
+        payload = collect_summary()
+        if args.json:
+            print(json.dumps(payload, indent=2, sort_keys=True))
+        else:
+            print(format_summary(payload))
+        return 0 if payload["status"] == "healthy" else 1
     snapshot = collect_snapshot()
-
     if args.command == "doctor":
         return _print_doctor(snapshot, args.json)
-
     if args.command == "automate":
         _print_automation(snapshot)
         return 0
-
     if args.command == "report":
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(snapshot_to_json(snapshot), encoding="utf-8")
         print(f"Report written to {args.output}")
         return 0
-
     return 2
