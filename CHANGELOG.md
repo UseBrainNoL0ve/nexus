@@ -20,17 +20,21 @@ All notable changes to NEXUS are documented here.
 - Read-only pacman update inspection through `nexus packages`.
 - Package update action planning through `nexus packages update`.
 - Explicit confirmation metadata for package update proposals.
-- Unit coverage for automation rules, service actions, audit records, and package inspection/planning.
+- Confirmation-gated package update execution engine.
+- Injectable package command runner for deterministic execution tests.
+- Explicit `nexus packages update --confirm` execution path.
+- Unit coverage for automation rules, service actions, audit records, and package inspection/planning/execution.
 
 ### Safety
 
 - Automation rules only produce action proposals.
 - Service actions require explicit confirmation before execution.
 - Package inspection invokes `pacman -Qu` only; it never installs, removes, or upgrades packages.
-- Package update planning is observation-only and does not execute the proposed `pacman` command.
-- System commands are executed without a shell and can be replaced by test runners.
+- Package update planning is observation-only until an explicit confirmation flag is supplied.
+- Package execution uses an argument sequence without a shell and supports injected test runners.
+- System commands can be replaced by deterministic test runners.
 - Audit records contain action metadata and execution results, not command output or environment secrets.
-- No package installation/removal or file deletion is performed by the current action engine.
+- No package installation/removal or file deletion is performed without an explicit confirmation path.
 
 ## [0.1.0-alpha] - 2026-09-16
 
