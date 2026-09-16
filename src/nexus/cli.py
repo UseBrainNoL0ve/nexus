@@ -8,6 +8,7 @@ from nexus.doctor import run_checks
 from nexus.reporting import snapshot_to_json
 from nexus.sensors.system import collect_snapshot
 from nexus.services.actions import plan_service_action
+from nexus.services.audit import read_audit_entries
 from nexus.services.engine import execute_service_action
 from nexus.services.systemd import SystemdError, inspect_services
 
@@ -131,6 +132,21 @@ def _print_service_action(service: str, action: str, dry_run: bool, confirm: boo
     return 1
 
 
+def _print_history(limit: int) -> int:
+    print(f"NEXUS action history (last {limit})")
+    entries = read_audit_entries(AUDIT_PATH, limit=limit)
+    if not entries:
+        print("No audit entries found.")
+        return 0
+
+    for entry in entries:
+        status = entry.result
+        if entry.return_code is not None:
+            status = f"{status} (exit {entry.return_code})"
+        print(f"{entry.timestamp} | {entry.action} | {entry.service} | {entry.risk} | {status}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nexus", description="Linux system intelligence CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -145,6 +161,9 @@ def build_parser() -> argparse.ArgumentParser:
     service.add_argument("--dry-run", action="store_true", help="show the planned action without executing it")
     service.add_argument("--confirm", action="store_true", help="explicitly authorize execution of the planned action")
 
+    history = sub.add_parser("history", help="show recent service action audit entries")
+    history.add_argument("--limit", type=int, default=20, help="number of recent entries to show")
+
     report = sub.add_parser("report", help="write a JSON health report")
     report.add_argument("--output", type=Path, default=Path("nexus-report.json"))
     return parser
@@ -158,6 +177,12 @@ def main() -> int:
 
     if args.command == "service":
         return _print_service_action(args.service, args.action, args.dry_run, args.confirm)
+
+    if args.command == "history":
+        if args.limit < 1:
+            print("History limit must be at least 1.")
+            return 2
+        return _print_history(args.limit)
 
     snapshot = collect_snapshot()
 
