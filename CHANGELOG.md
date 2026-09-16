@@ -2,6 +2,28 @@
 
 All notable changes to NEXUS are documented here.
 
+## [0.4.0-alpha] - 2026-09-16
+
+### Added
+
+- JSON-backed recurring scheduler for user-owned NEXUS jobs.
+- `nexus-scheduler add` for creating recurring jobs with explicit intervals.
+- `nexus-scheduler list` and `nexus-scheduler remove` for schedule management.
+- `nexus-scheduler run` for one-shot execution of due jobs.
+- `nexus-scheduler run --daemon` for a lightweight foreground scheduler loop.
+- Safe built-in scheduled actions for health checks and package inspection.
+- Linux desktop notifications through `notify-send` when available.
+- Injectable scheduler action runners and notification runners for deterministic tests.
+- Scheduler model and persistence unit tests.
+
+### Safety
+
+- Scheduled jobs can only invoke allow-listed NEXUS actions; arbitrary shell commands are not supported.
+- The scheduler does not automatically install packages or modify services.
+- Package scheduling is read-only inspection through `pacman -Qu`.
+- Schedules are stored as user-owned JSON under `.nexus/schedules.json`.
+- Desktop notifications are best-effort and do not affect scheduled action execution.
+
 ## [0.2.0-alpha] - 2026-09-16
 
 ### Added
