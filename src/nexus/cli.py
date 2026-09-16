@@ -8,6 +8,7 @@ from nexus.doctor import run_checks
 from nexus.reporting import snapshot_to_json
 from nexus.sensors.system import collect_snapshot
 from nexus.services.actions import plan_service_action
+from nexus.services.engine import execute_service_action
 from nexus.services.systemd import SystemdError, inspect_services
 
 
@@ -83,14 +84,14 @@ def _print_services() -> int:
     return 0
 
 
-def _print_service_action(service: str, action: str, dry_run: bool) -> int:
+def _print_service_action(service: str, action: str, dry_run: bool, confirm: bool) -> int:
     try:
         proposal = plan_service_action(service, action)
     except ValueError as exc:
         print(f"Invalid service action: {exc}")
         return 2
 
-    print("NEXUS service action (dry-run)")
+    print("NEXUS service action")
     print()
     print(f"Service: {proposal.service}")
     print(f"Action:  {proposal.action}")
@@ -98,13 +99,23 @@ def _print_service_action(service: str, action: str, dry_run: bool) -> int:
     print(f"Command: {' '.join(proposal.command)}")
     print(f"Reason:  {proposal.rationale}")
     print()
-    if dry_run:
+
+    if dry_run or not confirm:
         print("No changes were made.")
         print("Confirmation required before execution.")
         return 0
 
-    print("Execution is not enabled yet. No changes were made.")
-    return 0
+    result = execute_service_action(proposal, confirmed=True)
+    if result.return_code == 0:
+        print("Action completed successfully.")
+        return 0
+
+    print("Action execution failed.")
+    if result.return_code is not None:
+        print(f"Return code: {result.return_code}")
+    if result.stderr:
+        print(f"Error: {result.stderr.strip()}")
+    return 1
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -115,10 +126,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("automate", help="evaluate automation rules in dry-run mode")
     sub.add_parser("services", help="inspect systemd services without modifying them")
 
-    service = sub.add_parser("service", help="plan a safe systemd service action")
+    service = sub.add_parser("service", help="plan or execute a systemd service action")
     service.add_argument("action", choices=("start", "stop", "restart"))
     service.add_argument("service", help="systemd service unit, for example NetworkManager.service")
     service.add_argument("--dry-run", action="store_true", help="show the planned action without executing it")
+    service.add_argument("--confirm", action="store_true", help="explicitly authorize execution of the planned action")
 
     report = sub.add_parser("report", help="write a JSON health report")
     report.add_argument("--output", type=Path, default=Path("nexus-report.json"))
@@ -132,7 +144,7 @@ def main() -> int:
         return _print_services()
 
     if args.command == "service":
-        return _print_service_action(args.service, args.action, args.dry_run)
+        return _print_service_action(args.service, args.action, args.dry_run, args.confirm)
 
     snapshot = collect_snapshot()
 
