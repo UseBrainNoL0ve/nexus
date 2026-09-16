@@ -4,29 +4,37 @@ import sys
 
 from PySide6.QtWidgets import QApplication, QPushButton
 
+from nexus.gui.history import HistoryPage
+from nexus.gui.incidents import IncidentCenterPage
 from nexus.gui.main_window import MainWindow
 from nexus.gui.operations import OperationsPage
 
 
 class NexusDesktopWindow(MainWindow):
-    """Main NEXUS window with the CLI operations exposed in the GUI."""
+    """Main NEXUS window with investigation and operations surfaces."""
 
     def __init__(self) -> None:
         super().__init__()
         operations = OperationsPage()
-        index = self.pages.addWidget(operations)
+        operations_index = self.pages.addWidget(operations)
+        incident_index = self.pages.addWidget(IncidentCenterPage())
+        history_index = self.pages.addWidget(HistoryPage())
 
-        button = QPushButton("  ⚙   Command Center")
-        button.setObjectName("navButton")
-        button.setCheckable(True)
-        button.clicked.connect(lambda checked=False: self.show_page(index))
-        self.nav_buttons["Command Center"] = button
-
+        entries = (
+            ("Command Center", "  ⚙   Command Center", operations_index),
+            ("Incidents", "  ◉   Incidents", incident_index),
+            ("Telemetry", "  ◒   Telemetry", history_index),
+        )
         sidebar = self.nav_buttons["History"].parentWidget()
-        if sidebar is not None and sidebar.layout() is not None:
-            # Insert immediately before the stretch so the command entry stays
-            # with the rest of the primary navigation.
-            sidebar.layout().insertWidget(8, button)
+        if sidebar is None or sidebar.layout() is None:
+            return
+        for offset, (name, label, index) in enumerate(entries):
+            button = QPushButton(label)
+            button.setObjectName("navButton")
+            button.setCheckable(True)
+            button.clicked.connect(lambda checked=False, page=index: self.show_page(page))
+            self.nav_buttons[name] = button
+            sidebar.layout().insertWidget(8 + offset, button)
 
 
 def main() -> int:
