@@ -1,3 +1,4 @@
+import subprocess
 import unittest
 
 from nexus.automation.planner import plan_actions
@@ -5,6 +6,7 @@ from nexus.automation.rules import evaluate_rules
 from nexus.core.models import CpuSnapshot, DiskSnapshot, MemorySnapshot, NetworkInterface, SystemSnapshot
 from nexus.doctor import run_checks
 from nexus.reporting import snapshot_to_json
+from nexus.services.systemd import inspect_services
 
 
 class NEXUSTests(unittest.TestCase):
@@ -54,6 +56,39 @@ class NEXUSTests(unittest.TestCase):
     def test_action_planner_ignores_non_triggered_rules(self):
         results = evaluate_rules(self.snapshot())
         self.assertEqual(plan_actions(results), [])
+
+    def test_systemd_service_inspection_parses_read_only_state(self):
+        def fake_runner(command):
+            if command[1] == "list-units":
+                return subprocess.CompletedProcess(
+                    command,
+                    0,
+                    stdout=(
+                        "NetworkManager.service loaded active running "
+                        "Network Manager\n"
+                        "example.service loaded failed failed Example service\n"
+                    ),
+                    stderr="",
+                )
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=(
+                    "NetworkManager.service enabled\n"
+                    "example.service disabled\n"
+                ),
+                stderr="",
+            )
+
+        services = inspect_services(fake_runner)
+        self.assertEqual([service.unit for service in services], [
+            "NetworkManager.service",
+            "example.service",
+        ])
+        self.assertEqual(services[0].active_state, "active")
+        self.assertEqual(services[0].enabled_state, "enabled")
+        self.assertEqual(services[1].active_state, "failed")
+        self.assertEqual(services[1].enabled_state, "disabled")
 
 
 if __name__ == "__main__":
