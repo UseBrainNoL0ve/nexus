@@ -28,6 +28,7 @@ dependencies = [
 [project.scripts]
 nexus = "nexus.cli:main"
 nexus-gui = "nexus.gui.app:main"
+nexus-scheduler = "nexus.scheduler.commands:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
