@@ -5,9 +5,44 @@ import subprocess
 import unittest
 from unittest.mock import patch
 
-from nexus.cli import _inspect_packages, _print_services, build_parser
+from nexus.cli import _inspect_packages, _print_services, _print_status, build_parser
+from nexus.core.models import CpuSnapshot, DiskSnapshot, MemorySnapshot, NetworkInterface, SystemSnapshot
 from nexus.packages.pacman import PackageUpdate
 from nexus.services.systemd import ServiceSnapshot, SystemdError
+
+
+class StatusCliTests(unittest.TestCase):
+    def _snapshot(self):
+        return SystemSnapshot(
+            hostname="nexus-host",
+            platform="Linux",
+            kernel="6.17.1-cachyos",
+            python_version="3.13.7",
+            cpu=CpuSnapshot(load_percent=12.5, logical_cores=16),
+            memory=MemorySnapshot(total_bytes=160000, available_bytes=90000, used_percent=43.75),
+            disk=DiskSnapshot(path="/", total_bytes=1000000, free_bytes=400000, used_percent=60.0),
+            network=(NetworkInterface(name="enp0s3", rx_bytes=1234, tx_bytes=5678),),
+        )
+
+    def test_status_json_output_is_machine_readable(self):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            _print_status(self._snapshot(), json_output=True)
+
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["platform"], "Linux")
+        self.assertEqual(payload["kernel"], "6.17.1-cachyos")
+        self.assertEqual(payload["hostname"], "nexus-host")
+        self.assertEqual(payload["cpu"]["logical_cores"], 16)
+        self.assertEqual(payload["memory"]["used_percent"], 43.75)
+        self.assertEqual(payload["disk"]["path"], "/")
+        self.assertEqual(payload["network"][0]["name"], "enp0s3")
+        self.assertTrue(payload["read_only"])
+
+    def test_status_parser_accepts_json_flag(self):
+        args = build_parser().parse_args(["status", "--json"])
+        self.assertEqual(args.command, "status")
+        self.assertTrue(args.json)
 
 
 class PackageCliTests(unittest.TestCase):
