@@ -75,7 +75,7 @@ def _service_findings(services: list[ServiceSnapshot]) -> list[DiagnosticFinding
             category="service",
             severity="warning",
             title=f"Systemd service is failed: {service.unit}",
-            evidence=f"active={service.active_state}, sub={service.sub_state}; {service.description}".strip(),
+            evidence=f"unit={service.unit}; active={service.active_state}, sub={service.sub_state}; {service.description}".strip(),
             recommendation=f"Inspect {service.unit} logs and dependencies before considering a restart or other service action.",
         ))
     return findings
