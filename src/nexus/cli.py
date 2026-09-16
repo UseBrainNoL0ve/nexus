@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 
+from nexus.automation.rules import evaluate_rules
 from nexus.core.models import SystemSnapshot
 from nexus.doctor import run_checks
 from nexus.reporting import snapshot_to_json
@@ -16,11 +17,28 @@ def _print_status(snapshot: SystemSnapshot) -> None:
     print(f"Network: {len(snapshot.network)} interface(s)")
 
 
+def _print_automation(snapshot: SystemSnapshot) -> None:
+    print("NEXUS automation plan (dry-run)")
+    triggered = False
+    for result in evaluate_rules(snapshot):
+        status = "TRIGGER" if result.triggered else "OK"
+        print(f"[{status:7}] {result.rule}: {result.message}")
+        if result.triggered:
+            print(f"          Proposed action: {result.action}")
+            triggered = True
+
+    if not triggered:
+        print("No automation proposals are currently triggered.")
+    else:
+        print("No actions were executed. This command is observation-only.")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="nexus", description="Linux system intelligence CLI")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("status", help="show a system snapshot")
     sub.add_parser("doctor", help="run non-destructive health checks")
+    sub.add_parser("automate", help="evaluate automation rules in dry-run mode")
     report = sub.add_parser("report", help="write a JSON health report")
     report.add_argument("--output", type=Path, default=Path("nexus-report.json"))
     return parser
@@ -40,6 +58,10 @@ def main() -> int:
             print(f"[{check.status.upper():4}] {check.name}: {check.detail}")
             has_warnings |= check.status == "warn"
         return 1 if has_warnings else 0
+
+    if args.command == "automate":
+        _print_automation(snapshot)
+        return 0
 
     if args.command == "report":
         args.output.parent.mkdir(parents=True, exist_ok=True)
