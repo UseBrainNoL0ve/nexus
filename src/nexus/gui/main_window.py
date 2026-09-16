@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QThread, QTimer
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -16,8 +16,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from nexus.doctor import run_checks
-from nexus.gui.pages import DetailPage, PackagesPage, ServicesPage, doctor_text, history_text, scheduler_text
+from nexus.gui.pages import (
+    DetailPage,
+    PackagesPage,
+    ServicesPage,
+    doctor_text,
+    history_text,
+    scheduler_text,
+)
 from nexus.gui.workers import DashboardWorker
 
 
@@ -66,7 +72,6 @@ class MainWindow(QMainWindow):
         self.pulse = False
         self.refreshing = False
         self.refresh_count = 0
-        self.worker_thread: QThread | None = None
         self.worker: DashboardWorker | None = None
 
         root = QWidget()
@@ -140,7 +145,7 @@ class MainWindow(QMainWindow):
             QLabel#metricValue { font-size: 25px; font-weight: 750; }
             QLabel#healthBadge { background: #13241c; color: #70d59a; border: 1px solid #28533d; border-radius: 15px; padding: 7px 12px; font-weight: 750; }
             QLabel#healthBadgeWarning { background: #2a2115; color: #eeb96e; border: 1px solid #65471f; border-radius: 15px; padding: 7px 12px; font-weight: 750; }
-            QLabel#healthDetails { color: #b8c1ce; line-height: 1.4; }
+            QLabel#healthDetails { color: #b8c1ce; }
             QLabel#liveText { color: #70d59a; font-weight: 750; }
             QLabel#modeBadge { color: #70d59a; background: #102019; border: 1px solid #234a37; border-radius: 8px; padding: 7px 9px; font-size: 9px; font-weight: 750; }
             QLabel#sidebarVersion { color: #4f5b6d; font-size: 10px; padding-left: 4px; }
@@ -173,6 +178,7 @@ class MainWindow(QMainWindow):
         content_layout.setContentsMargins(30, 26, 30, 24)
         content_layout.setSpacing(17)
         self.pages.addWidget(content)
+
         header = QHBoxLayout()
         heading = QVBoxLayout()
         title = QLabel("System Overview")
@@ -285,20 +291,12 @@ class MainWindow(QMainWindow):
         self.refresh_button.setEnabled(False)
         self.health.setText("●  Scanning")
         self.refresh_info.setText("●  LIVE  •  collecting telemetry…")
-
-        thread = QThread(self)
-        worker = DashboardWorker()
-        worker.moveToThread(thread)
-        thread.started.connect(worker.run)
-        worker.finished.connect(self._dashboard_ready)
+        worker = DashboardWorker(self)
+        worker.data_ready.connect(self._dashboard_ready)
         worker.failed.connect(self._dashboard_failed)
-        worker.finished.connect(thread.quit)
-        worker.failed.connect(thread.quit)
-        thread.finished.connect(worker.deleteLater)
-        thread.finished.connect(self._worker_finished)
-        self.worker_thread = thread
+        worker.finished.connect(self._worker_finished)
         self.worker = worker
-        thread.start()
+        worker.start()
 
     def _dashboard_ready(self, data: object) -> None:
         snapshot = data.snapshot
@@ -333,5 +331,12 @@ class MainWindow(QMainWindow):
     def _worker_finished(self) -> None:
         self.refreshing = False
         self.refresh_button.setEnabled(True)
+        worker = self.worker
         self.worker = None
-        self.worker_thread = None
+        if worker is not None:
+            worker.deleteLater()
+
+    def closeEvent(self, event) -> None:  # type: ignore[override]
+        if self.worker is not None and self.worker.isRunning():
+            self.worker.wait()
+        event.accept()
