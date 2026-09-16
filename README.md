@@ -35,13 +35,15 @@ This makes NEXUS useful as a **personal Linux operations copilot** rather than a
 | What actually needs attention? | `nexus diagnose` | Findings grouped into incidents |
 | Why was it flagged? | `nexus diagnose` | Evidence and deterministic rules |
 | What should I do next? | `nexus diagnose` | Explainable remediation proposals |
-| What changed over time? | `nexus-observe` | Historical observations and trend detection |
+| What changed over time? | `nexus-observe` / GUI Telemetry | Historical observations and trend detection |
+| What is the current incident? | GUI Incidents | Evidence, grouping, and remediation plan |
 | Are services failing? | `nexus services` / diagnosis | systemd evidence |
 | Are packages waiting for updates? | `nexus packages` / diagnosis | pacman update evidence |
 | Can I automate recurring checks? | `nexus-scheduler` | Allow-listed scheduled jobs |
-| Can I operate this visually? | `nexus-gui` | Desktop operations dashboard |
+| Can I extend NEXUS? | `nexus-plugins` | Versioned plugin API and capability registry |
+| Can I operate this visually? | `nexus-gui` | Desktop operations, incidents, and telemetry |
 
-The important distinction is that **NEXUS does not hide the decision behind an automation button**. Diagnosis and planning are read-only. Mutating actions remain explicit, confirmation-gated, and auditable.
+The important distinction is that **NEXUS does not hide the decision behind an automation button**. Diagnosis and planning are read-only. Mutating actions remain explicit, confirmation-gated, named, and auditable.
 
 ## Current status
 
@@ -77,7 +79,7 @@ The important distinction is that **NEXUS does not hide the decision behind an a
 - Diagnostic and remediation layers are planning-only: they do not execute commands.
 - Mutating service and package operations remain behind the existing confirmation-gated action engines.
 
-### Operations and desktop UI
+### Operations, GUI, plugins, and automation
 
 - `nexus automate` — evaluate safe automation rules in dry-run mode.
 - `nexus services` — inspect systemd service state without modifying services.
@@ -87,8 +89,13 @@ The important distinction is that **NEXUS does not hide the decision behind an a
 - `nexus history` — inspect recent service-action audit records.
 - `nexus-scheduler` — manage safe recurring NEXUS jobs.
 - `nexus-gui` — launch the PySide6 desktop operations dashboard.
+- GUI **Incidents** — investigate current findings and remediation proposals in one place.
+- GUI **Telemetry** — visualize persisted CPU, memory, and disk history without an extra charting dependency.
+- `nexus-plugins` — inspect installed third-party plugins through the v0.6 versioned plugin API.
+- v1 automation platform — named action registry, centralized policy, dry-run execution, confirmation gates, and platform audit logging.
 - JSON Lines audit logging under `.nexus/audit.jsonl` for service actions.
 - Scheduler execution audit logging under `.nexus/scheduler-audit.jsonl`.
+- Platform execution audit logging under `.nexus/platform-audit.jsonl`.
 
 ## Operational pipeline
 
@@ -102,16 +109,19 @@ flowchart TD
     FINDINGS --> INCIDENTS[Incident Engine]
     INCIDENTS --> PLAN[Explainable Remediation Plans]
     PLAN --> CONFIRM{Human Confirmation}
-    CONFIRM -->|approved| ACTIONS[Controlled Action Engine]
+    CONFIRM -->|approved| ACTIONS[Policy-Gated Automation Platform]
     CONFIRM -->|not approved| AUDIT[Audit / History]
     ACTIONS --> AUDIT
     ACTIONS --> HOST[Linux Host]
+    PLUGINS[Versioned Plugin API] --> REGISTRY[Capability Registry]
+    REGISTRY --> DIAG
+    REGISTRY --> ACTIONS
     GUI[PySide6 Operations Center] --> OBS
     GUI --> DIAG
     GUI --> PLAN
 ```
 
-The key boundary is intentional: **observation → diagnosis → planning → authorization → execution → audit**.
+The key boundary is intentional: **observation → diagnosis → planning → authorization → execution → audit**. Plugins and automation extend the platform through named capabilities rather than arbitrary shell access.
 
 ## Quick start
 
@@ -138,6 +148,8 @@ nexus services
 nexus packages
 nexus packages update
 nexus history
+nexus-plugins
+nexus-plugins --json
 nexus report --output reports/health.json
 nexus-gui
 ```
@@ -150,9 +162,13 @@ nexus-gui
 
 The scheduler accepts only allow-listed NEXUS actions and does not support arbitrary shell commands.
 
+External plugins use the `nexus.plugins` packaging entry-point group and a versioned manifest. See `docs/platform.md` for the extension contract and automation architecture.
+
 ## Detailed usage guide
 
 For a command-by-command manual with installation, output interpretation, JSON usage, historical observations, systemd actions, package operations, scheduler usage, audit logs, troubleshooting workflows, safety boundaries, scripting, and a command cheat sheet, see **[docs/usage.md](docs/usage.md)**.
+
+For the plugin API, historical telemetry surface, incident center, and v1 automation runtime, see **[docs/platform.md](docs/platform.md)**.
 
 ## Safety model
 
@@ -160,9 +176,10 @@ For a command-by-command manual with installation, output interpretation, JSON u
 2. **Deterministic diagnosis:** findings are derived from explicit rules and evidence.
 3. **Explainable planning:** proposed remediation includes a reason and risk boundary.
 4. **Explicit authorization:** mutating operations require a separate confirmation step.
-5. **No arbitrary shell:** higher-level NEXUS features do not accept free-form shell execution.
-6. **Auditability:** operational decisions are persisted without storing command output or environment secrets.
-7. **Fail contained:** collection failures become diagnostic evidence instead of silently triggering mutation.
+5. **Named automation only:** the v1 platform executes registered capabilities, not arbitrary shell strings.
+6. **Versioned extensions:** plugins are API-versioned and capability-scoped.
+7. **Auditability:** operational decisions are persisted without storing command output or environment secrets.
+8. **Fail contained:** collection failures become diagnostic evidence instead of silently triggering mutation.
 
 ## Architecture
 
@@ -178,12 +195,14 @@ src/nexus/
 ├── services/        systemd inspection and actions
 ├── packages/        pacman inspection and actions
 ├── scheduler/       safe recurring jobs
+├── automation/      rules, action registry, policy, and execution platform
+├── plugins/         versioned third-party extension API
 ├── audit/           operational history
 ├── reporting/       machine-readable reports
 └── gui/             PySide6 operations interface
 ```
 
-See `docs/architecture.md` for the detailed execution model, `docs/diagnostics.md` for the diagnostic and incident pipeline, and `docs/usage.md` for the practical command manual.
+See `docs/architecture.md` for the detailed execution model, `docs/diagnostics.md` for the diagnostic and incident pipeline, `docs/usage.md` for the practical command manual, and `docs/platform.md` for the v0.6/v1 platform contract.
 
 ## Roadmap
 
@@ -198,10 +217,10 @@ See `docs/architecture.md` for the detailed execution model, `docs/diagnostics.m
 - [x] historical observation and anomaly detection
 - [x] incident modeling and explainable remediation planning
 - [x] integrated `nexus diagnose` command center
-- [ ] GUI incident/remediation center
-- [ ] richer historical visualization
-- [ ] v0.6 plugin system
-- [ ] v1.0 complete Linux automation platform
+- [x] GUI incident/remediation center
+- [x] richer historical visualization
+- [x] v0.6 plugin system
+- [x] v1.0 complete Linux automation platform
 
 ## Development
 
