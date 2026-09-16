@@ -10,6 +10,7 @@ from nexus.core.models import CpuSnapshot, DiskSnapshot, MemorySnapshot, Network
 from nexus.doctor import run_checks
 from nexus.reporting import snapshot_to_json
 from nexus.services.actions import plan_service_action
+from nexus.services.audit import read_audit_entries
 from nexus.services.engine import execute_service_action
 from nexus.services.systemd import inspect_services
 
@@ -157,6 +158,27 @@ class NEXUSTests(unittest.TestCase):
             self.assertTrue(entry["confirmed"])
             self.assertTrue(entry["executed"])
             self.assertEqual(entry["return_code"], 0)
+
+    def test_audit_history_returns_most_recent_entries(self):
+        proposal = plan_service_action("example.service", "restart")
+        with tempfile.TemporaryDirectory() as directory:
+            audit_path = Path(directory) / "audit.jsonl"
+            for _ in range(3):
+                execute_service_action(proposal, confirmed=False, audit_path=audit_path)
+
+            entries = read_audit_entries(audit_path, limit=2)
+            self.assertEqual(len(entries), 2)
+            self.assertTrue(all(entry.result == "confirmation_required" for entry in entries))
+
+    def test_audit_history_missing_file_is_empty(self):
+        with tempfile.TemporaryDirectory() as directory:
+            entries = read_audit_entries(Path(directory) / "missing.jsonl")
+            self.assertEqual(entries, [])
+
+    def test_audit_history_rejects_invalid_limit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(ValueError):
+                read_audit_entries(Path(directory) / "missing.jsonl", limit=0)
 
     def test_service_action_uses_injected_runner(self):
         proposal = plan_service_action("example.service", "restart")
