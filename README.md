@@ -18,6 +18,7 @@ NEXUS is a local Linux operations CLI that observes system health, inspects syst
 - `nexus automate` — evaluate safe automation rules in dry-run mode.
 - `nexus services` — inspect systemd service state without modifying services.
 - `nexus packages` — inspect available pacman updates without installing packages.
+- `nexus packages update` — turn inspected package updates into confirmation-gated action proposals without executing them.
 - `nexus service start|stop|restart ...` — plan controlled service actions with an explicit confirmation gate.
 - `nexus history` — inspect recent service-action audit records.
 - JSON Lines audit logging under `.nexus/audit.jsonl` for blocked and attempted service actions.
@@ -40,6 +41,7 @@ flowchart TD
     SENSORS --> NET[Network]
     RULES --> PLAN[Dry-run Action Proposals]
     SYSTEMD --> ACTIONS[Confirmed Action Engine]
+    PACMAN --> PACKAGE_PLAN[Package Update Proposals]
     ACTIONS --> AUDIT[JSONL Audit Log]
     CORE --> REPORT[JSON Reports]
 ```
@@ -58,11 +60,14 @@ nexus doctor
 nexus automate
 nexus services
 nexus packages
+nexus packages update
 nexus history
 nexus report --output reports/health.json
 ```
 
 `nexus packages` is read-only: it invokes `pacman -Qu` and never installs, removes, or upgrades packages.
+
+`nexus packages update` remains planning-only: it displays the command that would be used for each inspected update, marks the proposal as requiring confirmation, and performs no package mutation.
 
 For service actions, inspect first and use dry-run mode before considering explicit confirmation:
 
@@ -76,7 +81,7 @@ The action engine executes commands without a shell and records action metadata 
 ## Design principles
 
 1. **Safety first:** observation and planning come before mutation.
-2. **Explicit authorization:** service actions require a separate confirmation flag.
+2. **Explicit authorization:** mutating actions require a separate confirmation gate.
 3. **Observable before automated:** new actions receive a read-only or dry-run path first.
 4. **Linux-native:** prefer `/proc`, `/sys`, systemd, and pacman where appropriate.
 5. **Testable:** system integrations accept injectable command runners.
@@ -89,7 +94,7 @@ The action engine executes commands without a shell and records action metadata 
 - [x] v0.2 automation rule engine (dry-run)
 - [x] v0.2 systemd inspection and controlled action engine
 - [x] v0.2 pacman update inspection (read-only)
-- [ ] v0.3 package-management action planning
+- [x] v0.3 package-management action planning (proposal-only)
 - [ ] v0.4 scheduler and notification layer
 - [ ] v0.5 desktop GUI
 - [ ] v0.6 plugin system
