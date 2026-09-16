@@ -6,6 +6,43 @@ NEXUS is a local Linux operations platform built around a deliberate pipeline: o
 
 The project is intentionally Linux-native and safety-first. It uses `/proc`, `/sys`, systemd, and pacman where appropriate, keeps privileged behavior behind confirmation gates, and records operational decisions for auditability.
 
+## Why would I use NEXUS?
+
+Most Linux troubleshooting starts with a pile of commands: check memory, inspect services, look for package updates, read logs, and decide what to do next. NEXUS turns those separate checks into one repeatable workflow.
+
+**The practical user story is:**
+
+```text
+"Is my machine actually healthy?"
+          ↓
+      nexus diagnose
+          ↓
+"What is wrong, why does it matter, and what should I inspect next?"
+          ↓
+"Here is an explainable proposal. Nothing has been changed."
+          ↓
+"If I choose to act, the mutation is explicitly confirmed and audited."
+```
+
+This makes NEXUS useful as a **personal Linux operations copilot** rather than another system-information dashboard. It is especially useful when you want a fast first-pass diagnosis without blindly running cleanup, service, or package commands.
+
+### What NEXUS can answer
+
+| Question | NEXUS surface | Result |
+| --- | --- | --- |
+| What is my machine doing right now? | `nexus status` | CPU, memory, disk, network snapshot |
+| Is something unhealthy? | `nexus doctor` | Explicit health checks |
+| What actually needs attention? | `nexus diagnose` | Findings grouped into incidents |
+| Why was it flagged? | `nexus diagnose` | Evidence and deterministic rules |
+| What should I do next? | `nexus diagnose` | Explainable remediation proposals |
+| What changed over time? | `nexus-observe` | Historical observations and trend detection |
+| Are services failing? | `nexus services` / diagnosis | systemd evidence |
+| Are packages waiting for updates? | `nexus packages` / diagnosis | pacman update evidence |
+| Can I automate recurring checks? | `nexus-scheduler` | Allow-listed scheduled jobs |
+| Can I operate this visually? | `nexus-gui` | Desktop operations dashboard |
+
+The important distinction is that **NEXUS does not hide the decision behind an automation button**. Diagnosis and planning are read-only. Mutating actions remain explicit, confirmation-gated, and auditable.
+
 ## Current status
 
 **Version:** 0.2.0-alpha  
@@ -26,7 +63,8 @@ The project is intentionally Linux-native and safety-first. It uses `/proc`, `/s
 
 ### Diagnostics and incident modeling
 
-- `nexus-diagnose` — produce deterministic diagnostic findings from current system evidence.
+- `nexus diagnose` — the main user-facing command for "what needs attention and what should I do next?".
+- `nexus-diagnose` — standalone diagnostic entry point for the same analysis pipeline.
 - Failed systemd services are surfaced as structured findings.
 - Available package updates are represented as informational findings with confirmation metadata.
 - Related findings can be grouped into structured incidents.
@@ -85,12 +123,17 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
 
+# Start here: one command for a read-only system diagnosis.
+nexus diagnose
+
+# Machine-readable output for scripts and integrations.
+nexus diagnose --json
+
+# Other focused surfaces.
 nexus status
 nexus doctor
-nexus diagnose
 nexus-observe --limit 20
 nexus-diagnose
-nexus-diagnose --json
 nexus services
 nexus packages
 nexus packages update
@@ -99,7 +142,7 @@ nexus report --output reports/health.json
 nexus-gui
 ```
 
-If `nexus diagnose` is not yet available in the installed checkout, use the standalone diagnostic entry point `nexus-diagnose`. The integrated CLI command is part of the planned command-center consolidation.
+`nexus diagnose` is the recommended starting point because it combines current health evidence, diagnostic findings, incident grouping, and safe next-step proposals without modifying the machine.
 
 `nexus packages` is read-only: it invokes `pacman -Qu` and never installs, removes, or upgrades packages.
 
@@ -150,7 +193,7 @@ See `docs/architecture.md` for the detailed execution model and `docs/diagnostic
 - [x] diagnostic engine and structured findings
 - [x] historical observation and anomaly detection
 - [x] incident modeling and explainable remediation planning
-- [ ] integrated `nexus diagnose` command center
+- [x] integrated `nexus diagnose` command center
 - [ ] GUI incident/remediation center
 - [ ] richer historical visualization
 - [ ] v0.6 plugin system
