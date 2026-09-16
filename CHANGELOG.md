@@ -2,6 +2,25 @@
 
 All notable changes to NEXUS are documented here.
 
+## [0.5.0-alpha] - 2026-09-16
+
+### Added
+
+- Functional desktop navigation across Dashboard, Services, Packages, Doctor, Scheduler, and History.
+- Read-only systemd service detail view backed by live inspection.
+- Read-only pacman update detail view backed by live inspection.
+- Dedicated Doctor health-check view.
+- Scheduler configuration view backed by the persisted schedule store.
+- Scheduler execution history view backed by the scheduler audit log.
+- Reusable read-only GUI detail page component with explicit refresh controls.
+- Active navigation state and consistent NEXUS dark visual language across pages.
+
+### Safety
+
+- All new GUI detail pages are observation-only.
+- No service, package, or scheduler mutation is exposed by the 0.5 navigation layer.
+- Detail-page failures are contained in the page view instead of terminating the desktop application.
+
 ## [0.4.0-alpha] - 2026-09-16
 
 ### Added
