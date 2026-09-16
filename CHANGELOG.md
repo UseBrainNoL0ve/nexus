@@ -14,12 +14,15 @@ All notable changes to NEXUS are documented here.
 - Scheduler execution history view backed by the scheduler audit log.
 - Reusable read-only GUI detail page component with explicit refresh controls.
 - Active navigation state and consistent NEXUS dark visual language across pages.
+- Richer dashboard presentation with icon-led metric cards, system identity telemetry, live monitor status, and refined navigation branding.
+- Interactive visual states for navigation, health badges, refresh controls, metric cards, and read-only mode.
 
 ### Safety
 
 - All new GUI detail pages are observation-only.
 - No service, package, or scheduler mutation is exposed by the 0.5 navigation layer.
 - Detail-page failures are contained in the page view instead of terminating the desktop application.
+- Visual enhancements do not change the underlying system command safety model.
 
 ## [0.4.0-alpha] - 2026-09-16
 
