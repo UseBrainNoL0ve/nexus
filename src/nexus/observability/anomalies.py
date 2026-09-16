@@ -57,4 +57,10 @@ def detect_trends(observations: list[Observation]) -> list[TrendFinding]:
             recommendation="Identify sustained CPU-heavy workloads and verify whether the load is expected.",
         ))
 
+    metric_order = {
+        "disk_used_percent": 0,
+        "memory_used_percent": 1,
+        "cpu_load_percent": 2,
+    }
+    findings.sort(key=lambda item: metric_order.get(item.metric, 99))
     return findings
