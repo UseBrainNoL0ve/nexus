@@ -7,6 +7,7 @@ from nexus.core.models import CpuSnapshot, DiskSnapshot, MemorySnapshot, Network
 from nexus.doctor import run_checks
 from nexus.reporting import snapshot_to_json
 from nexus.services.actions import plan_service_action
+from nexus.services.engine import execute_service_action
 from nexus.services.systemd import inspect_services
 
 
@@ -108,6 +109,38 @@ class NEXUSTests(unittest.TestCase):
     def test_service_action_rejects_unsupported_action(self):
         with self.assertRaises(ValueError):
             plan_service_action("NetworkManager.service", "reload")
+
+    def test_service_action_requires_confirmation(self):
+        proposal = plan_service_action("example.service", "restart")
+        result = execute_service_action(proposal, confirmed=False)
+        self.assertFalse(result.executed)
+        self.assertIsNone(result.return_code)
+        self.assertIn("Confirmation required", result.stderr)
+
+    def test_service_action_uses_injected_runner(self):
+        proposal = plan_service_action("example.service", "restart")
+        calls = []
+
+        def fake_runner(command):
+            calls.append(tuple(command))
+            return subprocess.CompletedProcess(command, 0, stdout="ok\n", stderr="")
+
+        result = execute_service_action(proposal, confirmed=True, runner=fake_runner)
+        self.assertTrue(result.executed)
+        self.assertEqual(result.return_code, 0)
+        self.assertEqual(result.stdout, "ok\n")
+        self.assertEqual(calls, [("systemctl", "restart", "example.service")])
+
+    def test_service_action_propagates_runner_failure(self):
+        proposal = plan_service_action("example.service", "stop")
+
+        def fake_runner(command):
+            return subprocess.CompletedProcess(command, 5, stdout="", stderr="permission denied\n")
+
+        result = execute_service_action(proposal, confirmed=True, runner=fake_runner)
+        self.assertTrue(result.executed)
+        self.assertEqual(result.return_code, 5)
+        self.assertEqual(result.stderr, "permission denied\n")
 
 
 if __name__ == "__main__":
