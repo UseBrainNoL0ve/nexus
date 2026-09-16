@@ -52,18 +52,27 @@ def _print_automation(snapshot: SystemSnapshot) -> None:
     print("No actions were executed. This command is observation-only.")
 
 
-def _print_services() -> int:
-    print("NEXUS system services (read-only)")
-
+def _print_services(json_output: bool = False) -> int:
     try:
         services = inspect_services()
     except SystemdError as exc:
-        print(f"Systemd inspection failed: {exc}")
+        if json_output:
+            print(
+                json.dumps(
+                    {
+                        "service_manager": "systemd",
+                        "services": [],
+                        "count": 0,
+                        "read_only": True,
+                        "error": str(exc),
+                    },
+                    indent=2,
+                )
+            )
+        else:
+            print("NEXUS system services (read-only)")
+            print(f"Systemd inspection failed: {exc}")
         return 1
-
-    if not services:
-        print("No service units were found.")
-        return 0
 
     running = [service for service in services if service.active_state == "active"]
     failed = [service for service in services if service.active_state == "failed"]
@@ -77,6 +86,42 @@ def _print_services() -> int:
         for service in services
         if service.enabled_state in {"enabled", "enabled-runtime"}
     ]
+
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "service_manager": "systemd",
+                    "services": [
+                        {
+                            "unit": service.unit,
+                            "load_state": service.load_state,
+                            "active_state": service.active_state,
+                            "sub_state": service.sub_state,
+                            "description": service.description,
+                            "enabled_state": service.enabled_state,
+                        }
+                        for service in services
+                    ],
+                    "count": len(services),
+                    "summary": {
+                        "running": len(running),
+                        "failed": len(failed),
+                        "stopped": len(stopped),
+                        "enabled": len(enabled),
+                    },
+                    "read_only": True,
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    print("NEXUS system services (read-only)")
+
+    if not services:
+        print("No service units were found.")
+        return 0
 
     print(f"Services: {len(services)}")
     print(f"Running:  {len(running)}")
@@ -255,7 +300,13 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("status", help="show a system snapshot")
     sub.add_parser("doctor", help="run non-destructive health checks")
     sub.add_parser("automate", help="evaluate automation rules in dry-run mode")
-    sub.add_parser("services", help="inspect systemd services without modifying them")
+
+    services = sub.add_parser("services", help="inspect systemd services without modifying them")
+    services.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON output",
+    )
 
     packages = sub.add_parser("packages", help="inspect or plan pacman updates")
     packages.add_argument(
@@ -292,7 +343,7 @@ def main() -> int:
     args = build_parser().parse_args()
 
     if args.command == "services":
-        return _print_services()
+        return _print_services(args.json)
 
     if args.command == "packages":
         if args.package_action == "update":
