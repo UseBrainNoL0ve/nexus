@@ -1,4 +1,7 @@
+import json
+from pathlib import Path
 import subprocess
+import tempfile
 import unittest
 
 from nexus.automation.planner import plan_actions
@@ -116,6 +119,44 @@ class NEXUSTests(unittest.TestCase):
         self.assertFalse(result.executed)
         self.assertIsNone(result.return_code)
         self.assertIn("Confirmation required", result.stderr)
+
+    def test_service_action_writes_blocked_audit_entry(self):
+        proposal = plan_service_action("example.service", "restart")
+        with tempfile.TemporaryDirectory() as directory:
+            audit_path = Path(directory) / "audit.jsonl"
+            result = execute_service_action(
+                proposal,
+                confirmed=False,
+                audit_path=audit_path,
+            )
+            self.assertFalse(result.executed)
+            entry = json.loads(audit_path.read_text(encoding="utf-8"))
+            self.assertEqual(entry["service"], "example.service")
+            self.assertEqual(entry["result"], "confirmation_required")
+            self.assertFalse(entry["confirmed"])
+            self.assertFalse(entry["executed"])
+            self.assertIsNone(entry["return_code"])
+
+    def test_service_action_writes_success_audit_entry(self):
+        proposal = plan_service_action("example.service", "restart")
+
+        def fake_runner(command):
+            return subprocess.CompletedProcess(command, 0, stdout="ok\n", stderr="")
+
+        with tempfile.TemporaryDirectory() as directory:
+            audit_path = Path(directory) / "audit.jsonl"
+            result = execute_service_action(
+                proposal,
+                confirmed=True,
+                runner=fake_runner,
+                audit_path=audit_path,
+            )
+            self.assertTrue(result.executed)
+            entry = json.loads(audit_path.read_text(encoding="utf-8"))
+            self.assertEqual(entry["result"], "success")
+            self.assertTrue(entry["confirmed"])
+            self.assertTrue(entry["executed"])
+            self.assertEqual(entry["return_code"], 0)
 
     def test_service_action_uses_injected_runner(self):
         proposal = plan_service_action("example.service", "restart")
