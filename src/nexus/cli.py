@@ -5,6 +5,9 @@ from pathlib import Path
 from nexus.automation.planner import plan_actions
 from nexus.automation.rules import evaluate_rules
 from nexus.core.models import SystemSnapshot
+from nexus.diagnostics.engine import collect_diagnostics
+from nexus.diagnostics.incidents import build_incidents
+from nexus.diagnostics.remediation import build_remediation_plan
 from nexus.doctor import checks_to_dict, overall_status, run_checks
 from nexus.packages.actions import plan_package_updates
 from nexus.packages.engine import execute_package_update
@@ -55,6 +58,74 @@ def _print_doctor(snapshot: SystemSnapshot, json_output: bool = False) -> int:
     for check in checks:
         print(f"[{check.status.upper():4}] {check.name}: {check.detail}")
     return 1 if status == "warn" else 0
+
+
+def _print_diagnose(snapshot: SystemSnapshot, json_output: bool = False) -> int:
+    findings, errors = collect_diagnostics(snapshot)
+    incidents = build_incidents(findings)
+    remediation = build_remediation_plan(findings)
+    warning_count = sum(1 for finding in findings if finding.severity in {"warning", "critical"})
+
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "finding_count": len(findings),
+                    "findings": [finding.to_dict() for finding in findings],
+                    "incident_count": len(incidents),
+                    "incidents": [incident.to_dict() for incident in incidents],
+                    "remediation_steps": [step.to_dict() for step in remediation],
+                    "collection_errors": errors,
+                    "read_only": True,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 1 if warning_count else 0
+
+    print("NEXUS diagnosis (read-only)")
+    if not findings:
+        print("System signals look normal from the available evidence.")
+        if errors:
+            print(f"Collection warnings: {len(errors)}")
+        print("No actions were executed.")
+        return 0
+
+    print(f"Findings: {len(findings)}")
+    for finding in findings:
+        print()
+        print(f"[{finding.severity.upper():8}] {finding.title}")
+        print(f"  Why it matters: {finding.evidence}")
+        print(f"  Next step:      {finding.recommendation}")
+        print(f"  Confirmation:   {'yes' if finding.requires_confirmation else 'no'}")
+
+    print()
+    print(f"Incidents: {len(incidents)}")
+    for incident in incidents:
+        print(f"  - {incident.id}: {incident.title}")
+        print(f"    {incident.summary}")
+
+    print()
+    print("Suggested remediation (not executed):")
+    if not remediation:
+        print("  - none")
+    for step in remediation:
+        print(f"  - {step.action}")
+        print(f"    Risk: {step.risk} | Confirmation required: {'yes' if step.requires_confirmation else 'no'}")
+        print(f"    Reason: {step.reason}")
+        if step.command:
+            print(f"    Proposed command: {step.command}")
+
+    if errors:
+        print()
+        print("Collection warnings:")
+        for error in errors:
+            print(f"  - {error}")
+
+    print()
+    print("No actions were executed. Review the evidence before approving any mutation.")
+    return 1 if warning_count else 0
 
 
 def _print_automation(snapshot: SystemSnapshot) -> None:
@@ -339,6 +410,15 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="emit machine-readable JSON output",
     )
+    diagnose = sub.add_parser(
+        "diagnose",
+        help="explain what needs attention and propose safe next steps",
+    )
+    diagnose.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON output",
+    )
     sub.add_parser("automate", help="evaluate automation rules in dry-run mode")
 
     services = sub.add_parser("services", help="inspect systemd services without modifying them")
@@ -411,6 +491,9 @@ def main() -> int:
 
     if args.command == "doctor":
         return _print_doctor(snapshot, args.json)
+
+    if args.command == "diagnose":
+        return _print_diagnose(snapshot, args.json)
 
     if args.command == "automate":
         _print_automation(snapshot)

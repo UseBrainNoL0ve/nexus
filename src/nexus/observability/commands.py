@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 
+from nexus.observability.anomalies import detect_trends
 from nexus.observability.history import analyze_observations, append_observation, read_observations
 from nexus.sensors.system import collect_snapshot
 
@@ -27,7 +28,9 @@ def main() -> int:
     observation = append_observation(snapshot)
     observations = read_observations(limit=args.limit)
     analysis = analyze_observations(observations)
+    trends = detect_trends(observations)
     analysis["recorded_at"] = observation.timestamp
+    analysis["trend_findings"] = [finding.to_dict() for finding in trends]
 
     if args.json:
         print(json.dumps(analysis, indent=2, sort_keys=True))
@@ -57,4 +60,14 @@ def main() -> int:
             f"RX +{traffic['rx_bytes_delta']} bytes / "
             f"TX +{traffic['tx_bytes_delta']} bytes"
         )
+
+    if trends:
+        print("Trend findings:")
+        for finding in trends:
+            print(f"  [{finding.severity.upper()}] {finding.title}")
+            print(f"    Evidence: {finding.evidence}")
+            print(f"    Recommendation: {finding.recommendation}")
+    else:
+        print("Trend findings: none")
+
     return 0
