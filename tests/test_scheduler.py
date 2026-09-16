@@ -5,6 +5,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from nexus.scheduler.audit import read_entries
 from nexus.scheduler.engine import Scheduler
 from nexus.scheduler.models import ScheduledJob
 from nexus.scheduler.store import ScheduleStore
@@ -30,9 +31,11 @@ class SchedulerTests(unittest.TestCase):
             self.assertTrue(store.remove("report"))
             self.assertEqual(store.load(), [])
 
-    def test_scheduler_runs_due_job_and_notifies(self):
+    def test_scheduler_runs_due_job_notifies_and_audits(self):
         with tempfile.TemporaryDirectory() as directory:
-            store = ScheduleStore(Path(directory) / "schedules.json")
+            root = Path(directory)
+            store = ScheduleStore(root / "schedules.json")
+            audit_path = root / "scheduler-audit.jsonl"
             store.add(ScheduledJob("doctor", "doctor", 60, notify=True))
             calls = []
             notices = []
@@ -41,6 +44,7 @@ class SchedulerTests(unittest.TestCase):
                 store=store,
                 action_runner=lambda action: (calls.append(action) or (True, "Doctor check completed")),
                 notifier=lambda title, message: notices.append((title, message)) or True,
+                audit_path=audit_path,
             )
             now = datetime(2026, 9, 16, 12, 0, tzinfo=timezone.utc)
             results = scheduler.run_due(now)
@@ -49,6 +53,10 @@ class SchedulerTests(unittest.TestCase):
             self.assertEqual(len(results), 1)
             self.assertEqual(notices, [("NEXUS: doctor", "Doctor check completed")])
             self.assertFalse(store.load()[0].due(now))
+            entries = read_entries(audit_path)
+            self.assertEqual(len(entries), 1)
+            self.assertEqual(entries[0].job, "doctor")
+            self.assertTrue(entries[0].success)
 
 
 if __name__ == "__main__":
