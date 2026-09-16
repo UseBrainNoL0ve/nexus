@@ -5,7 +5,7 @@ from pathlib import Path
 from nexus.automation.planner import plan_actions
 from nexus.automation.rules import evaluate_rules
 from nexus.core.models import SystemSnapshot
-from nexus.doctor import run_checks
+from nexus.doctor import checks_to_dict, overall_status, run_checks
 from nexus.packages.actions import plan_package_updates
 from nexus.packages.engine import execute_package_update
 from nexus.packages.pacman import PackageManagerError, inspect_updates
@@ -33,6 +33,28 @@ def _print_status(snapshot: SystemSnapshot, json_output: bool = False) -> None:
     print(f"Memory:  {snapshot.memory.used_percent:.1f}% used")
     print(f"Disk:    {snapshot.disk.used_percent:.1f}% used ({snapshot.disk.path})")
     print(f"Network: {len(snapshot.network)} interface(s)")
+
+
+def _print_doctor(snapshot: SystemSnapshot, json_output: bool = False) -> int:
+    checks = run_checks(snapshot)
+    status = overall_status(checks)
+
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "status": status,
+                    "checks": checks_to_dict(checks),
+                    "read_only": True,
+                },
+                indent=2,
+            )
+        )
+        return 1 if status == "warn" else 0
+
+    for check in checks:
+        print(f"[{check.status.upper():4}] {check.name}: {check.detail}")
+    return 1 if status == "warn" else 0
 
 
 def _print_automation(snapshot: SystemSnapshot) -> None:
@@ -311,7 +333,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="emit machine-readable JSON output",
     )
 
-    sub.add_parser("doctor", help="run non-destructive health checks")
+    doctor = sub.add_parser("doctor", help="run non-destructive health checks")
+    doctor.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON output",
+    )
     sub.add_parser("automate", help="evaluate automation rules in dry-run mode")
 
     services = sub.add_parser("services", help="inspect systemd services without modifying them")
@@ -383,11 +410,7 @@ def main() -> int:
     snapshot = collect_snapshot()
 
     if args.command == "doctor":
-        has_warnings = False
-        for check in run_checks(snapshot):
-            print(f"[{check.status.upper():4}] {check.name}: {check.detail}")
-            has_warnings |= check.status == "warn"
-        return 1 if has_warnings else 0
+        return _print_doctor(snapshot, args.json)
 
     if args.command == "automate":
         _print_automation(snapshot)
