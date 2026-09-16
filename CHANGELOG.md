@@ -18,14 +18,16 @@ All notable changes to NEXUS are documented here.
 - `nexus history` command for inspecting recent service action audit entries.
 - Bounded audit history reader with missing-log and invalid-limit handling.
 - Read-only pacman update inspection through `nexus packages`.
-- Injectable pacman command runner and parser tests.
-- Unit coverage for automation rules, service actions, audit records, and package inspection.
+- Package update action planning through `nexus packages update`.
+- Explicit confirmation metadata for package update proposals.
+- Unit coverage for automation rules, service actions, audit records, and package inspection/planning.
 
 ### Safety
 
 - Automation rules only produce action proposals.
 - Service actions require explicit confirmation before execution.
 - Package inspection invokes `pacman -Qu` only; it never installs, removes, or upgrades packages.
+- Package update planning is observation-only and does not execute the proposed `pacman` command.
 - System commands are executed without a shell and can be replaced by test runners.
 - Audit records contain action metadata and execution results, not command output or environment secrets.
 - No package installation/removal or file deletion is performed by the current action engine.
