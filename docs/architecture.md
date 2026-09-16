@@ -5,57 +5,34 @@ NEXUS is structured as a Linux operations pipeline rather than a collection of u
 ## System pipeline
 
 ```text
-                    ┌──────────────────────┐
-                    │     Linux Host       │
-                    │ /proc /sys /systemd  │
-                    │       /pacman        │
-                    └──────────┬───────────┘
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │       Sensors        │
-                    │ CPU / Memory / Disk  │
-                    │       / Network      │
-                    └──────────┬───────────┘
-                               │
-                 ┌─────────────┴─────────────┐
-                 ▼                           ▼
-        ┌─────────────────┐        ┌──────────────────┐
-        │ Current Doctor  │        │ Observation Store│
-        │ Health Checks   │        │      JSONL       │
-        └────────┬────────┘        └────────┬─────────┘
-                 │                          │
-                 └────────────┬─────────────┘
-                              ▼
-                   ┌──────────────────────┐
-                   │ Diagnostic Engine    │
-                   │ explicit rules +     │
-                   │ collected evidence   │
-                   └──────────┬───────────┘
-                              ▼
-                   ┌──────────────────────┐
-                   │ Incident Engine      │
-                   │ grouping + severity  │
-                   └──────────┬───────────┘
-                              ▼
-                   ┌──────────────────────┐
-                   │ Remediation Planner  │
-                   │ explainable proposal │
-                   └──────────┬───────────┘
-                              ▼
-                       ┌─────────────┐
-                       │ Confirmation│
-                       └──────┬──────┘
-                              │
-                    approved  │  rejected
-                         ▼    │    ▼
-                 ┌───────────┐│ ┌─────────────┐
-                 │  Action   ││ │    Audit    │
-                 │  Engine   │└>│   History   │
-                 └─────┬─────┘  └─────────────┘
-                       │
-                       ▼
-                 Linux mutation
+Linux Host
+    │
+    ▼
+Sensors ───────────────► Observation Store ─────► Historical Analysis
+    │                            │                         │
+    └──────────────┬─────────────┴────────────────────────┘
+                   ▼
+          Diagnostic Engine
+                   │
+                   ▼
+            Incident Engine
+                   │
+                   ▼
+          Remediation Planner
+                   │
+                   ▼
+           Human Confirmation
+                   │
+                   ▼
+        Policy-Gated Automation Platform
+                   │
+                   ├── named Action Registry
+                   ├── centralized Policy
+                   ├── execution handlers
+                   └── platform audit
+                   │
+                   ▼
+              Linux mutation
 ```
 
 The important invariant is that **diagnostics never imply authorization**. A finding can recommend an operation without being allowed to execute it.
@@ -80,7 +57,7 @@ Current trend rules cover sustained resource pressure:
 - disk: three consecutive observations at or above 85%
 - CPU: three consecutive observations at or above 80%
 
-These thresholds are intentionally visible in code and tests. They are detection heuristics, not claims about universal system health limits.
+The desktop Telemetry page renders these persisted observations with a dependency-free Qt chart.
 
 ### Diagnostics
 
@@ -90,9 +67,9 @@ Collection failures are represented as diagnostic collection warnings where poss
 
 ### Incidents
 
-The incident layer groups related findings into a higher-level operational unit. An incident carries a stable identifier, severity, title, findings, evidence, status, timestamps, and authorization metadata.
+The incident layer groups related findings into a higher-level operational unit. The GUI Incident & Remediation Center presents incident severity, evidence, findings, and the corresponding explainable remediation proposals.
 
-The initial implementation is deliberately deterministic. It does not use an opaque model score to decide whether findings are related.
+The implementation is deliberately deterministic. It does not use an opaque model score to decide whether findings are related.
 
 ### Remediation planning
 
@@ -100,9 +77,26 @@ The remediation layer transforms known findings into explicit proposals. A propo
 
 The planner is **proposal-only**. It does not execute commands.
 
-### Action engines
+### Plugin layer
 
-Existing service and package action engines are the only layer allowed to cross the mutation boundary. They enforce explicit confirmation and use argument sequences instead of arbitrary shell execution.
+The v0.6 plugin runtime uses the Python `nexus.plugins` entry-point group. Each plugin declares a versioned `PluginManifest` and registers named capabilities through `PluginRegistry`.
+
+Plugins may register sensors, diagnostics, actions, or UI integrations. Discovery is deterministic and rejects incompatible API versions. The plugin contract intentionally does not expose arbitrary shell execution.
+
+### Automation platform
+
+The v1 automation platform centralizes execution policy in `AutomationPlatform`:
+
+1. `ActionRegistry` allow-lists named capabilities and their handlers.
+2. `AutomationPolicy` decides dry-run, confirmation, and authorization.
+3. `AutomationPlatform` invokes only the registered handler for the selected action.
+4. Execution results are written to `.nexus/platform-audit.jsonl`.
+
+The platform is therefore an orchestration boundary, not a generic command runner. Existing systemd/package engines can remain specialized while plugins and future Linux capabilities use the same authorization and audit contract.
+
+### Existing action engines
+
+Service and package action engines remain specialized Linux integrations. They use argument sequences rather than arbitrary shell execution and keep confirmation requirements explicit. The v1 platform provides the higher-level policy boundary around named capabilities rather than replacing those domain-specific safety checks.
 
 ### Audit
 
@@ -110,19 +104,18 @@ Operational decisions are written to JSON Lines history. Audit records avoid com
 
 ## Desktop architecture
 
-The PySide6 GUI consumes the same domain services as the CLI. Background workers keep telemetry collection out of the Qt event loop. The intended desktop flow is:
+The PySide6 GUI consumes the same domain services as the CLI. Background workers keep telemetry collection out of the Qt event loop. The current desktop flow is:
 
 ```text
 Dashboard
-   │
    ├── Services / Packages
-   ├── Doctor / Diagnostics
-   ├── Incidents
-   ├── Remediation proposals
-   └── History / Audit
+   ├── Doctor / Command Center
+   ├── Incidents / Remediation
+   ├── Telemetry / Historical visualization
+   └── Scheduler / History
 ```
 
-The GUI should not create a second system-control implementation. It should present and orchestrate the same tested domain logic used by the CLI.
+The GUI should not create a second system-control implementation. It presents the same tested domain logic used by the CLI.
 
 ## Testing strategy
 
@@ -150,3 +143,5 @@ python -m unittest discover -s tests -v
 - systemd is inspected through controlled subprocess argument sequences.
 - pacman is queried through controlled subprocess argument sequences.
 - External services are not required for the core observation and diagnostic pipeline.
+- Plugins extend capabilities through a versioned Python API.
+- Automation execution is constrained by named registration, centralized policy, explicit confirmation, and audit logging.
