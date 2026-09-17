@@ -45,6 +45,7 @@ create_launcher "nexus-observe" "nexus.observability.commands"
 create_launcher "nexus-diagnose" "nexus.diagnostics.commands"
 create_launcher "nexus-summary" "nexus.summary_cli"
 create_launcher "nexus-plugins" "nexus.plugins.commands"
+create_launcher "nexus-capture" "nexus.capture.commands"
 
 cat <<EOF
 NEXUS installed system-wide.
@@ -52,8 +53,10 @@ NEXUS installed system-wide.
 Python: ${PYTHON_BIN}
 Package path: ${SITE_PACKAGES}
 Command: ${PREFIX}/bin/nexus
+Capture command: ${PREFIX}/bin/nexus-capture
 
 Verify with:
   command -v nexus
   nexus --help
+  nexus-capture status
 EOF
