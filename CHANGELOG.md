@@ -37,6 +37,7 @@ All notable changes to NEXUS are documented here.
 
 - Package command-runner injection is resolved at call time, avoiding import-time default binding and making tests deterministic.
 - Portable package parsing was hardened for apt update output and other native-manager formats.
+- Fixed whitespace normalization in the apt current-version parser so CI fixtures produce clean package versions.
 - Service-name validation is now backend-aware: systemd retains its `.service` unit contract while other supported service managers can use native service names.
 - Cross-distro tests explicitly inject package and service backends instead of depending on the GitHub Actions host.
 - Usage and screen-capture documentation now distinguish capability coverage from full end-to-end feature support.
