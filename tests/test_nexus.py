@@ -10,11 +10,17 @@ from nexus.core.models import CpuSnapshot, DiskSnapshot, MemorySnapshot, Network
 from nexus.doctor import run_checks
 from nexus.packages.actions import plan_package_updates
 from nexus.packages.pacman import inspect_updates
+from nexus.platform import PackageBackend
 from nexus.reporting import snapshot_to_json
 from nexus.services.actions import plan_service_action
 from nexus.services.audit import read_audit_entries
+from nexus.services.backend import ServiceBackend
 from nexus.services.engine import execute_service_action
 from nexus.services.systemd import inspect_services
+
+
+PACMAN_BACKEND = PackageBackend("pacman", "pacman", ("pacman", "-Qu"), ("pacman", "-Syu"))
+SYSTEMD_BACKEND = ServiceBackend("systemd")
 
 
 class NEXUSTests(unittest.TestCase):
@@ -107,39 +113,39 @@ class NEXUSTests(unittest.TestCase):
                 stderr="",
             )
         )
-        proposals = plan_package_updates(updates)
+        proposals = plan_package_updates(updates, backend=PACMAN_BACKEND)
         self.assertEqual(len(proposals), 1)
         self.assertEqual(proposals[0].command, ("sudo", "pacman", "-S", "core/linux"))
         self.assertEqual(proposals[0].risk, "medium")
         self.assertTrue(proposals[0].requires_confirmation)
 
     def test_service_action_plan_is_non_executing(self):
-        proposal = plan_service_action("NetworkManager.service", "restart")
+        proposal = plan_service_action("NetworkManager.service", "restart", backend=SYSTEMD_BACKEND)
         self.assertEqual(proposal.command, ("systemctl", "restart", "NetworkManager.service"))
         self.assertEqual(proposal.risk, "medium")
         self.assertTrue(proposal.requires_confirmation)
 
     def test_service_stop_has_higher_risk(self):
-        proposal = plan_service_action("example.service", "stop")
+        proposal = plan_service_action("example.service", "stop", backend=SYSTEMD_BACKEND)
         self.assertEqual(proposal.risk, "high")
 
     def test_service_action_rejects_invalid_unit(self):
         with self.assertRaises(ValueError):
-            plan_service_action("NetworkManager", "restart")
+            plan_service_action("NetworkManager", "restart", backend=SYSTEMD_BACKEND)
 
     def test_service_action_rejects_unsupported_action(self):
         with self.assertRaises(ValueError):
-            plan_service_action("NetworkManager.service", "reload")
+            plan_service_action("NetworkManager.service", "reload", backend=SYSTEMD_BACKEND)
 
     def test_service_action_requires_confirmation(self):
-        proposal = plan_service_action("example.service", "restart")
+        proposal = plan_service_action("example.service", "restart", backend=SYSTEMD_BACKEND)
         result = execute_service_action(proposal, confirmed=False)
         self.assertFalse(result.executed)
         self.assertIsNone(result.return_code)
         self.assertIn("Confirmation required", result.stderr)
 
     def test_service_action_writes_blocked_audit_entry(self):
-        proposal = plan_service_action("example.service", "restart")
+        proposal = plan_service_action("example.service", "restart", backend=SYSTEMD_BACKEND)
         with tempfile.TemporaryDirectory() as directory:
             audit_path = Path(directory) / "audit.jsonl"
             result = execute_service_action(
@@ -156,7 +162,7 @@ class NEXUSTests(unittest.TestCase):
             self.assertIsNone(entry["return_code"])
 
     def test_service_action_writes_success_audit_entry(self):
-        proposal = plan_service_action("example.service", "restart")
+        proposal = plan_service_action("example.service", "restart", backend=SYSTEMD_BACKEND)
 
         def fake_runner(command):
             return subprocess.CompletedProcess(command, 0, stdout="ok\n", stderr="")
@@ -177,7 +183,7 @@ class NEXUSTests(unittest.TestCase):
             self.assertEqual(entry["return_code"], 0)
 
     def test_audit_history_returns_most_recent_entries(self):
-        proposal = plan_service_action("example.service", "restart")
+        proposal = plan_service_action("example.service", "restart", backend=SYSTEMD_BACKEND)
         with tempfile.TemporaryDirectory() as directory:
             audit_path = Path(directory) / "audit.jsonl"
             for _ in range(3):
@@ -198,7 +204,7 @@ class NEXUSTests(unittest.TestCase):
                 read_audit_entries(Path(directory) / "missing.jsonl", limit=0)
 
     def test_service_action_uses_injected_runner(self):
-        proposal = plan_service_action("example.service", "restart")
+        proposal = plan_service_action("example.service", "restart", backend=SYSTEMD_BACKEND)
         calls = []
 
         def fake_runner(command):
@@ -212,7 +218,7 @@ class NEXUSTests(unittest.TestCase):
         self.assertEqual(calls, [("systemctl", "restart", "example.service")])
 
     def test_service_action_propagates_runner_failure(self):
-        proposal = plan_service_action("example.service", "stop")
+        proposal = plan_service_action("example.service", "stop", backend=SYSTEMD_BACKEND)
 
         def fake_runner(command):
             return subprocess.CompletedProcess(command, 5, stdout="", stderr="permission denied\n")
