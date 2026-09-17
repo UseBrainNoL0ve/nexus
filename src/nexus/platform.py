@@ -1,9 +1,4 @@
-"""Linux distribution and native package-manager capability detection.
-
-NEXUS intentionally detects capabilities instead of hard-coding a distro name.
-Unknown distributions remain usable for telemetry and diagnosis; unsupported
-mutations are surfaced as unavailable capabilities rather than guessed.
-"""
+"""Linux distribution and native package-manager capability detection."""
 
 from __future__ import annotations
 
@@ -50,7 +45,7 @@ def detect_package_backend() -> PackageBackend | None:
         ("dnf", "dnf", ("dnf", "check-update"), ("dnf", "upgrade")),
         ("yum", "yum", ("yum", "check-update"), ("yum", "update")),
         ("zypper", "zypper", ("zypper", "list-updates"), ("zypper", "update")),
-        ("apk", "apk", ("apk", "version", "-l", "'<',"), ("apk", "upgrade")),
+        ("apk", "apk", ("apk", "version", "-l", "'<'), ("apk", "upgrade")),
         ("xbps", "xbps-install", ("xbps-install", "-Mun"), ("xbps-install", "-Su")),
         ("eopkg", "eopkg", ("eopkg", "list-upgrades"), ("eopkg", "upgrade")),
     )
