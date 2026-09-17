@@ -12,14 +12,14 @@ All notable changes to NEXUS are documented here.
 - Added native service-manager command mapping for systemd, OpenRC, runit, s6-rc, and dinit.
 - Added distribution-agnostic platform documentation and explicit fail-closed behavior for unsupported capabilities.
 - Added a privacy-first design specification for an opt-in local screen activity recorder, including a visible recording state, local-only storage, retention controls, and a Wayland/XDG Desktop Portal integration strategy.
-- Added documentation for system-wide NEXUS installation through `pipx --global`, keeping the development `.venv` separate from end-user command availability.
+- Added a native system-wide installer that places NEXUS under `/usr/local` and exposes its commands directly on `PATH`, without a repository-local venv or pipx environment.
 
 ### User value
 
 - NEXUS core functionality no longer depends on CachyOS or Arch Linux.
 - Debian/Ubuntu, Fedora/RHEL-family, SUSE, Alpine, Void, Solus, Arch-family, and other distributions can use the same NEXUS application when a supported native capability is present.
 - Unknown distributions remain usable for telemetry and diagnosis instead of being rejected by a distro allow-list.
-- End users can expose NEXUS commands system-wide without activating the repository's development virtual environment.
+- End users can run NEXUS as a normal system command without activating the repository's development virtual environment.
 - The planned screen activity feature is explicitly designed for the device owner's local incident investigation rather than covert monitoring.
 
 ### Safety
