@@ -8,12 +8,15 @@ All notable changes to NEXUS are documented here.
 
 - Added capability-based Linux distribution detection from `/etc/os-release`.
 - Added native package-manager detection for pacman, apt, dnf, yum, zypper, apk, xbps, and eopkg.
+- Added explicit Debian-family mappings for Pardus, Kali Linux, and Parrot OS.
 - Added portable package-update inspection that conservatively parses supported native managers.
 - Added native service-manager command mapping for systemd, OpenRC, runit, s6-rc, and dinit.
 - Added distribution-agnostic platform documentation and explicit fail-closed behavior for unsupported capabilities.
 - Added a privacy-first design specification for an opt-in local screen activity recorder, including visible state, local-only storage, retention controls, and a Wayland/XDG Desktop Portal strategy.
 - Added a native system-wide installer that places NEXUS under `/usr/local` and exposes commands directly on `PATH`, without a repository-local venv or pipx environment.
 - Added the first screen-capture lifecycle foundation: explicit policy gate, persistent local session metadata, state machine, backend interface, and `nexus-capture` CLI.
+- Added a Wayland/XDG Desktop Portal capability backend that probes the user-session portal without starting a capture.
+- Added compatibility tests covering Pardus, Ubuntu, Fedora, Kali, Parrot, and CachyOS package-manager selection.
 
 ### User value
 
@@ -21,7 +24,7 @@ All notable changes to NEXUS are documented here.
 - Common Linux distributions can use the same application when a supported native capability is present.
 - Unknown distributions remain usable for telemetry and diagnosis instead of being rejected by a distro allow-list.
 - End users can run NEXUS as a normal system command without activating the repository's development virtual environment.
-- The screen activity roadmap now has a testable lifecycle boundary before platform-specific capture is introduced.
+- The screen activity roadmap now has a testable lifecycle and Wayland capability boundary before platform-specific frame recording is introduced.
 
 ### Fixed
 
@@ -29,7 +32,7 @@ All notable changes to NEXUS are documented here.
 - Portable package parsing was hardened for apt update output and other native-manager formats.
 - Service-name validation is now backend-aware: systemd retains its `.service` unit contract while other supported service managers can use native service names.
 - Cross-distro tests explicitly inject package and service backends instead of depending on the GitHub Actions host.
-- Usage documentation now matches the system-wide installation workflow and documents the universal Linux capability model.
+- Usage and screen-capture documentation now distinguish capability coverage from full end-to-end feature support.
 
 ### Safety
 
@@ -37,7 +40,7 @@ All notable changes to NEXUS are documented here.
 - Package and service operations use native backends rather than guessed commands.
 - Unsupported package/service capabilities fail closed; NEXUS does not invent a mutation command.
 - Existing confirmation gates, dry-run behavior, and audit boundaries remain unchanged.
-- Screen capture is disabled by default and the current backend fails closed when no approved capture implementation is available.
+- Screen capture is disabled by default and the current backend refuses to claim recording until an approved PipeWire recorder exists.
 - Screen activity is designed with no hidden activation, no remote activation path, no network upload, and no permission bypass.
 - Screen recordings are treated as sensitive local data because they may contain credentials or private content.
 
