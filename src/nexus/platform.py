@@ -35,7 +35,12 @@ def detect_distribution(path: Path = Path("/etc/os-release")) -> Distribution:
         key, value = line.split("=", 1)
         values[key] = value.strip().strip('"')
     like = tuple(item for item in values.get("ID_LIKE", "").split() if item)
-    return Distribution(values.get("ID", "unknown"), values.get("NAME", values.get("ID", "Unknown Linux")), values.get("VERSION_ID", ""), like)
+    return Distribution(
+        values.get("ID", "unknown"),
+        values.get("NAME", values.get("ID", "Unknown Linux")),
+        values.get("VERSION_ID", ""),
+        like,
+    )
 
 
 def detect_package_backend() -> PackageBackend | None:
@@ -51,11 +56,29 @@ def detect_package_backend() -> PackageBackend | None:
     }
     distro = detect_distribution()
     preference = {
-        "arch": "pacman", "cachyos": "pacman", "manjaro": "pacman", "endeavouros": "pacman",
-        "debian": "apt", "ubuntu": "apt", "linuxmint": "apt", "pop": "apt", "elementary": "apt",
-        "fedora": "dnf", "rhel": "dnf", "rocky": "dnf", "almalinux": "dnf", "nobara": "dnf",
-        "opensuse": "zypper", "opensuse-tumbleweed": "zypper", "sles": "zypper",
-        "alpine": "apk", "void": "xbps", "solus": "eopkg",
+        "arch": "pacman",
+        "cachyos": "pacman",
+        "manjaro": "pacman",
+        "endeavouros": "pacman",
+        "debian": "apt",
+        "ubuntu": "apt",
+        "linuxmint": "apt",
+        "pop": "apt",
+        "elementary": "apt",
+        "pardus": "apt",
+        "kali": "apt",
+        "parrot": "apt",
+        "fedora": "dnf",
+        "rhel": "dnf",
+        "rocky": "dnf",
+        "almalinux": "dnf",
+        "nobara": "dnf",
+        "opensuse": "zypper",
+        "opensuse-tumbleweed": "zypper",
+        "sles": "zypper",
+        "alpine": "apk",
+        "void": "xbps",
+        "solus": "eopkg",
     }
     preferred = preference.get(distro.id)
     ordered = ([preferred] if preferred else []) + [name for name in candidates if name != preferred]
