@@ -4,7 +4,6 @@ import os
 import shutil
 import subprocess
 from dataclasses import dataclass
-from typing import Sequence
 
 
 @dataclass(frozen=True)
