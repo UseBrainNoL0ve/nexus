@@ -4,7 +4,6 @@
 >
 > Observe your machine. Understand what is happening. Plan a fix. Authorize changes. Keep an audit trail.
 
-[![CI](https://github.com/UseBrainNoL0ve/nexus/actions/workflows/ci.yml/badge.svg)](https://github.com/UseBrainNoL0ve/nexus/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/platform-Linux-orange.svg)](#linux-compatibility)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
