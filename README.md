@@ -251,7 +251,7 @@ This is **capability coverage**, not a claim that every feature behaves identica
 
 ## Privacy-first screen activity foundation
 
-NEXUS also explored a Recall-like local screen-activity workflow, but the project deliberately stopped before shipping an unsafe or half-finished recorder.
+NEXUS also explored a Recall-like local screen-activity workflow, but the project deliberately stopped at a complete, privacy-first **capture lifecycle foundation** rather than shipping a recorder that could not be honestly verified across Linux environments.
 
 The implemented foundation includes:
 
@@ -262,9 +262,9 @@ The implemented foundation includes:
 - Wayland/XDG Desktop Portal capability detection
 - fail-closed behavior when a safe recording backend is unavailable
 
-The full **Portal → PipeWire frame recorder is intentionally deferred**. NEXUS does not claim to record your screen when the underlying recorder is not actually implemented.
+The full **Portal → PipeWire frame recorder is intentionally outside the final project scope**. No checkbox claims that NEXUS records the screen when the underlying runtime recorder is not implemented and verified.
 
-That is a feature of the engineering process, not a missing checkbox: sensitive functionality should not be shipped merely to make a README look complete.
+This is part of the engineering boundary: sensitive functionality should not be marked complete merely to make a README look complete.
 
 ---
 
@@ -409,7 +409,7 @@ Each step was kept testable and documented rather than treating the project as o
 
 **NEXUS is being wrapped up as a completed portfolio and learning milestone.**
 
-The core platform is intentionally preserved in a coherent state rather than expanded indefinitely. Future maintenance or focused experiments can continue from the existing architecture, but larger unfinished features — especially full screen recording — are not presented as complete.
+The core platform is intentionally preserved in a coherent state rather than expanded indefinitely. Future maintenance or focused experiments can continue from the existing architecture, but larger deferred experiments — especially full screen recording — are explicitly outside this release scope.
 
 ### Completed milestones
 
@@ -431,7 +431,8 @@ The core platform is intentionally preserved in a coherent state rather than exp
 - [x] native system-wide installer
 - [x] privacy-first capture lifecycle foundation
 - [x] Wayland/XDG Portal capability detection
-- [ ] full Portal → PipeWire frame recorder — deliberately deferred
+
+**Scope boundary:** the Portal → PipeWire frame recorder remains a future experiment rather than an incomplete milestone. Everything listed above is part of the intentionally completed NEXUS scope.
 
 ---
 
