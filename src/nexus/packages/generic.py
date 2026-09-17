@@ -55,7 +55,7 @@ def _parse(manager: str, output: str) -> list[PackageUpdate]:
                 continue
             available_version = remainder.split(None, 1)[0]
             marker = "[upgradable from:"
-            current_version = remainder.split(marker, 1)[1].rstrip("] ")
+            current_version = remainder.split(marker, 1)[1].rstrip("] ").strip()
             if available_version and current_version:
                 updates.append(PackageUpdate(package_name, current_version, available_version, "apt"))
             continue
