@@ -39,17 +39,30 @@ def detect_distribution(path: Path = Path("/etc/os-release")) -> Distribution:
 
 
 def detect_package_backend() -> PackageBackend | None:
-    candidates = (
-        ("pacman", "pacman", ("pacman", "-Qu"), ("pacman", "-Syu")),
-        ("apt", "apt", ("apt", "list", "--upgradable"), ("apt", "upgrade")),
-        ("dnf", "dnf", ("dnf", "check-update"), ("dnf", "upgrade")),
-        ("yum", "yum", ("yum", "check-update"), ("yum", "update")),
-        ("zypper", "zypper", ("zypper", "list-updates"), ("zypper", "update")),
-        ("apk", "apk", ("apk", "version", "-l", "'<'), ("apk", "upgrade")),
-        ("xbps", "xbps-install", ("xbps-install", "-Mun"), ("xbps-install", "-Su")),
-        ("eopkg", "eopkg", ("eopkg", "list-upgrades"), ("eopkg", "upgrade")),
-    )
-    for name, executable, inspect, update in candidates:
+    candidates = {
+        "pacman": ("pacman", ("pacman", "-Qu"), ("pacman", "-Syu")),
+        "apt": ("apt", ("apt", "list", "--upgradable"), ("apt", "upgrade")),
+        "dnf": ("dnf", ("dnf", "check-update"), ("dnf", "upgrade")),
+        "yum": ("yum", ("yum", "check-update"), ("yum", "update")),
+        "zypper": ("zypper", ("zypper", "list-updates"), ("zypper", "update")),
+        "apk": ("apk", ("apk", "version", "-l", "<"), ("apk", "upgrade")),
+        "xbps": ("xbps-install", ("xbps-install", "-Mun"), ("xbps-install", "-Su")),
+        "eopkg": ("eopkg", ("eopkg", "list-upgrades"), ("eopkg", "upgrade")),
+    }
+    distro = detect_distribution()
+    preference = {
+        "arch": "pacman", "cachyos": "pacman", "manjaro": "pacman", "endeavouros": "pacman",
+        "debian": "apt", "ubuntu": "apt", "linuxmint": "apt", "pop": "apt", "elementary": "apt",
+        "fedora": "dnf", "rhel": "dnf", "rocky": "dnf", "almalinux": "dnf", "nobara": "dnf",
+        "opensuse": "zypper", "opensuse-tumbleweed": "zypper", "sles": "zypper",
+        "alpine": "apk", "void": "xbps", "solus": "eopkg",
+    }
+    preferred = preference.get(distro.id)
+    ordered = ([preferred] if preferred else []) + [name for name in candidates if name != preferred]
+    for name in ordered:
+        if not name:
+            continue
+        executable, inspect, update = candidates[name]
         if shutil.which(executable):
             return PackageBackend(name, executable, inspect, update)
     return None
@@ -57,9 +70,9 @@ def detect_package_backend() -> PackageBackend | None:
 
 def detect_service_manager() -> str | None:
     """Return the first available native service manager without executing it."""
-    for name in ("systemd", "openrc", "runit", "s6-rc", "dinit"):
-        if name == "systemd" and shutil.which("systemctl"):
-            return name
-        if name != "systemd" and shutil.which(name):
+    if shutil.which("systemctl"):
+        return "systemd"
+    for name, executable in (("openrc", "rc-service"), ("runit", "sv"), ("s6-rc", "s6-rc"), ("dinit", "dinitctl")):
+        if shutil.which(executable):
             return name
     return None
