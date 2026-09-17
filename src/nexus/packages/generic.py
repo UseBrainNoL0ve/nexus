@@ -17,12 +17,20 @@ def _runner(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(list(command), check=False, capture_output=True, text=True, timeout=30)
 
 
-def inspect_updates(backend: PackageBackend | None = None, runner: CommandRunner = _runner) -> list[PackageUpdate]:
-    """Inspect updates using the detected native package manager."""
+def inspect_updates(
+    backend: PackageBackend | None = None,
+    runner: CommandRunner | None = None,
+) -> list[PackageUpdate]:
+    """Inspect updates using the detected native package manager.
+
+    The runner is resolved at call time so tests can reliably inject a fake
+    command runner without depending on import-time default binding.
+    """
     active = backend or detect_package_backend()
     if active is None:
         return []
-    result = runner(active.inspect_command)
+    active_runner = runner or _runner
+    result = active_runner(active.inspect_command)
     if result.returncode not in {0, 1, 100}:
         return []
     return _parse(active.name, result.stdout)
