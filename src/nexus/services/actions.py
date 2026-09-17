@@ -21,13 +21,15 @@ class ServiceActionProposal:
     manager: str = "unknown"
 
 
-def _validate_service(service: str) -> None:
+def _validate_service(service: str, backend: ServiceBackend) -> None:
     if not service or service.isspace():
         raise ValueError("service name must not be empty")
     if any(character.isspace() for character in service):
         raise ValueError("service name must not contain whitespace")
     if service in {".service", "..service"}:
         raise ValueError("service name is invalid")
+    if backend.name == "systemd" and not service.endswith(".service"):
+        raise ValueError("systemd service name must end with .service")
 
 
 def plan_service_action(
@@ -36,12 +38,12 @@ def plan_service_action(
     backend: ServiceBackend | None = None,
 ) -> ServiceActionProposal:
     """Build a native service-manager proposal without executing it."""
-    _validate_service(service)
     if action not in _ALLOWED_ACTIONS:
         raise ValueError(f"unsupported service action: {action}")
     active = backend or detect_service_backend()
     if active is None:
         raise RuntimeError("no supported Linux service manager was detected")
+    _validate_service(service, active)
 
     risk = {"start": "medium", "restart": "medium", "stop": "high"}[action]
     rationale = {

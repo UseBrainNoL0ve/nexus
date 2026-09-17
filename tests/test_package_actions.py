@@ -2,6 +2,10 @@ import unittest
 
 from nexus.packages.actions import plan_package_updates
 from nexus.packages.pacman import PackageUpdate
+from nexus.platform import PackageBackend
+
+
+PACMAN_BACKEND = PackageBackend("pacman", "pacman", ("pacman", "-Qu"), ("pacman", "-Syu"))
 
 
 class PackageActionTests(unittest.TestCase):
@@ -11,7 +15,7 @@ class PackageActionTests(unittest.TestCase):
             PackageUpdate("example", "1.2.0-1", "1.3.0-1", "extra"),
         ]
 
-        proposals = plan_package_updates(updates)
+        proposals = plan_package_updates(updates, backend=PACMAN_BACKEND)
 
         self.assertEqual(len(proposals), 2)
         self.assertTrue(all(proposal.requires_confirmation for proposal in proposals))

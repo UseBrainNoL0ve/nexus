@@ -33,6 +33,7 @@ nexus-observe = "nexus.observability.commands:main"
 nexus-diagnose = "nexus.diagnostics.commands:main"
 nexus-summary = "nexus.summary_cli:main"
 nexus-plugins = "nexus.plugins.commands:main"
+nexus-capture = "nexus.capture.commands:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
