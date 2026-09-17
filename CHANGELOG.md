@@ -11,12 +11,16 @@ All notable changes to NEXUS are documented here.
 - Added portable package-update inspection that conservatively parses supported native managers.
 - Added native service-manager command mapping for systemd, OpenRC, runit, s6-rc, and dinit.
 - Added distribution-agnostic platform documentation and explicit fail-closed behavior for unsupported capabilities.
+- Added a privacy-first design specification for an opt-in local screen activity recorder, including a visible recording state, local-only storage, retention controls, and a Wayland/XDG Desktop Portal integration strategy.
+- Added documentation for system-wide NEXUS installation through `pipx --global`, keeping the development `.venv` separate from end-user command availability.
 
 ### User value
 
 - NEXUS core functionality no longer depends on CachyOS or Arch Linux.
 - Debian/Ubuntu, Fedora/RHEL-family, SUSE, Alpine, Void, Solus, Arch-family, and other distributions can use the same NEXUS application when a supported native capability is present.
 - Unknown distributions remain usable for telemetry and diagnosis instead of being rejected by a distro allow-list.
+- End users can expose NEXUS commands system-wide without activating the repository's development virtual environment.
+- The planned screen activity feature is explicitly designed for the device owner's local incident investigation rather than covert monitoring.
 
 ### Safety
 
@@ -24,6 +28,8 @@ All notable changes to NEXUS are documented here.
 - Package and service operations use native backends rather than guessed commands.
 - Unsupported package/service capabilities fail closed; NEXUS does not invent a mutation command.
 - Existing confirmation gates, dry-run behavior, and audit boundaries remain unchanged.
+- Screen activity capture is planned as opt-in only, with no hidden activation, no remote activation path, no network upload, and no permission bypass.
+- Screen recordings are treated as sensitive local data because they may contain credentials or private content.
 
 ## [Previous Unreleased]
 
