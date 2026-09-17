@@ -1,10 +1,31 @@
 # NEXUS Platform Architecture
 
-This document closes the v0.6–v1 roadmap boundary: a desktop investigation center, richer historical telemetry, a stable plugin API, and a policy-gated automation runtime.
+NEXUS is distribution-agnostic at the architecture boundary: core telemetry, diagnostics, incident modeling, remediation planning, plugins, and automation do not depend on a specific Linux distribution.
+
+## Distribution and capability detection
+
+NEXUS reads `/etc/os-release` when available and detects native capabilities instead of branching on a hard-coded distro list. Unknown distributions remain usable for system telemetry and diagnosis.
+
+Package operations use a native backend selected from the executable available on the host:
+
+- pacman — Arch Linux family and derivatives
+- apt — Debian/Ubuntu family and derivatives
+- dnf — Fedora/RHEL-family systems
+- yum — legacy RHEL-family systems
+- zypper — openSUSE/SUSE systems
+- apk — Alpine Linux
+- xbps-install — Void Linux
+- eopkg — Solus
+
+If no supported package manager is installed, NEXUS does not guess. Package inspection simply has no backend and the rest of the platform remains available.
+
+Service actions similarly detect systemd, OpenRC, runit, s6-rc, or dinit. Systemd inspection remains available where systemd is present; on other init systems, NEXUS exposes the service-manager capability without pretending that systemd-specific state exists.
+
+This capability model is intentionally broader than a distro allow-list: a new distribution can work without a code change when it provides a supported native interface.
 
 ## Incident & Remediation Center
 
-`nexus-gui` now exposes an **Incidents** page. It collects current evidence, groups findings into incidents, and renders explainable remediation proposals. The page is intentionally read-only: diagnosis and planning do not execute changes.
+`nexus-gui` exposes an **Incidents** page. It collects current evidence, groups findings into incidents, and renders explainable remediation proposals. The page is intentionally read-only: diagnosis and planning do not execute changes.
 
 ## Historical visualization
 
@@ -41,8 +62,6 @@ nexus-plugins
 nexus-plugins --json
 ```
 
-The API is intentionally small so a future v0.7 release can evolve implementations without making plugin authors depend on internal NEXUS modules.
-
 ## v1 automation platform
 
 The automation runtime introduces four explicit layers:
@@ -61,8 +80,6 @@ Platform Audit (.nexus/platform-audit.jsonl)
 
 `AutomationPlatform` never accepts arbitrary shell strings. An action must first be registered with an `ActionSpec` and a Python handler. Mutating actions default to requiring confirmation. Dry-run is the default execution mode and still writes an audit record.
 
-This gives NEXUS a stable orchestration boundary for systemd, package management, scheduler jobs, plugins, and future Linux capabilities without collapsing them into one unrestricted command runner.
-
 ## Safety contract
 
 1. Observation and diagnosis remain non-mutating.
@@ -71,5 +88,6 @@ This gives NEXUS a stable orchestration boundary for systemd, package management
 4. Mutating actions require explicit authorization unless a registered action explicitly declares otherwise.
 5. Execution results are recorded in JSON Lines audit storage.
 6. Plugins are version-gated and do not receive an arbitrary shell interface.
+7. Distribution-specific operations are delegated to detected native backends; unsupported capabilities fail closed.
 
-The result is a complete platform boundary rather than a single monolithic automation command: NEXUS can grow new Linux capabilities while keeping authorization and auditability centralized.
+The result is a portable Linux platform: NEXUS does not require CachyOS or Arch Linux for its core functionality, while preserving native package/service behavior where the host provides it.
