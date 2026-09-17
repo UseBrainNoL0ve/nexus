@@ -4,6 +4,10 @@ import unittest
 from nexus.packages.actions import plan_package_updates
 from nexus.packages.engine import execute_package_update
 from nexus.packages.pacman import PackageUpdate
+from nexus.platform import PackageBackend
+
+
+PACMAN_BACKEND = PackageBackend("pacman", "pacman", ("pacman", "-Qu"), ("pacman", "-Syu"))
 
 
 class PackageEngineTests(unittest.TestCase):
@@ -15,7 +19,7 @@ class PackageEngineTests(unittest.TestCase):
                 available_version="6.17-2",
                 repository="core",
             ),
-        ])[0]
+        ], backend=PACMAN_BACKEND)[0]
 
     def test_unconfirmed_update_does_not_execute(self):
         calls = []
@@ -61,6 +65,7 @@ class PackageEngineTests(unittest.TestCase):
             available_version=proposal.available_version,
             risk=proposal.risk,
             requires_confirmation=False,
+            manager=proposal.manager,
         )
 
         with self.assertRaises(ValueError):
