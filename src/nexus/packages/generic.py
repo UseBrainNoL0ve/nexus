@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import subprocess
 from collections.abc import Callable, Sequence
 
@@ -25,8 +24,7 @@ def inspect_updates(
     active = backend or detect_package_backend()
     if active is None:
         return []
-    active_runner = runner or _runner
-    result = active_runner(active.inspect_command)
+    result = (runner or _runner)(active.inspect_command)
     if result.returncode not in {0, 1, 100}:
         return []
     return _parse(active.name, result.stdout)
@@ -47,12 +45,19 @@ def _parse(manager: str, output: str) -> list[PackageUpdate]:
             continue
 
         if manager == "apt":
-            match = re.match(
-                r"^([^/\s]+)/[^\s]+\s+([^\s]+)\s+[^\[]*\[upgradable from:\s*([^\]]+)\]$",
-                line,
-            )
-            if match:
-                updates.append(PackageUpdate(match.group(1), match.group(3), match.group(2), "apt"))
+            # apt list --upgradable format:
+            # package/repository version architecture [upgradable from: old]
+            if "[upgradable from:" not in line or "/" not in line:
+                continue
+            package_ref, remainder = line.split(None, 1)
+            package_name = package_ref.split("/", 1)[0]
+            if not package_name:
+                continue
+            available_version = remainder.split(None, 1)[0]
+            marker = "[upgradable from:"
+            current_version = remainder.split(marker, 1)[1].rstrip("] ")
+            if available_version and current_version:
+                updates.append(PackageUpdate(package_name, current_version, available_version, "apt"))
             continue
 
         if manager in {"dnf", "yum"}:
