@@ -1,8 +1,9 @@
-"""Linux package manager inspection and safe update planning."""
+"""Linux package-manager inspection and safe update planning."""
 
 from nexus.packages.actions import PackageUpdateProposal, plan_package_updates
 from nexus.packages.engine import PackageActionResult, execute_package_update
-from nexus.packages.pacman import PackageManagerError, PackageUpdate, inspect_updates
+from nexus.packages.generic import inspect_updates
+from nexus.packages.pacman import PackageManagerError, PackageUpdate
 
 __all__ = [
     "PackageActionResult",
