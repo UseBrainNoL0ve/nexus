@@ -1,114 +1,240 @@
 # NEXUS
 
-> A safety-first Linux system intelligence and automation platform.
+> **A safety-first Linux system intelligence and automation platform.**
+>
+> Observe your machine. Understand what is happening. Plan a fix. Authorize changes. Keep an audit trail.
 
-NEXUS is a local Linux operations platform built around a deliberate pipeline: observe the host, diagnose evidence, model incidents, prepare explainable remediation plans, and only then cross an explicit authorization boundary for mutating actions.
+[![CI](https://github.com/UseBrainNoL0ve/nexus/actions/workflows/ci.yml/badge.svg)](https://github.com/UseBrainNoL0ve/nexus/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
+[![Platform](https://img.shields.io/badge/platform-Linux-orange.svg)](#linux-compatibility)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-The project is Linux-native and distribution-agnostic at the platform layer. It detects native package and service backends instead of assuming one distribution, while keeping unsupported capabilities fail-closed.
+NEXUS is a local Linux operations platform that turns scattered troubleshooting commands into a structured workflow. It collects system evidence, diagnoses problems, groups related findings into incidents, generates explainable remediation plans, and keeps every mutating operation behind an explicit authorization boundary.
 
-## Why NEXUS?
+It is deliberately more than a system-information dashboard — and deliberately less than a tool that blindly runs commands on your machine.
 
-Most Linux troubleshooting starts with a pile of commands: check memory, inspect services, look for package updates, read logs, and decide what to do next. NEXUS turns those separate checks into one repeatable workflow.
+---
 
-**The practical user story is:**
+## The idea
+
+Linux administration often looks like this:
 
 ```text
-"Is my machine actually healthy?"
-          ↓
-      nexus diagnose
-          ↓
-"What is wrong, why does it matter, and what should I inspect next?"
-          ↓
-"Here is an explainable proposal. Nothing has been changed."
-          ↓
-"If I choose to act, the mutation is explicitly confirmed and audited."
+check CPU → check RAM → inspect services → check updates → read logs → guess → run commands → hope
 ```
 
-This makes NEXUS a personal Linux operations copilot rather than another system-information dashboard.
+NEXUS turns that into a repeatable operational pipeline:
 
-## Current status
+```text
+┌──────────────┐
+│  OBSERVATION │  What is happening?
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│  DIAGNOSIS   │  What looks abnormal?
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│   INCIDENT   │  What findings belong together?
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│   PLANNING   │  What could fix it, and why?
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│ AUTHORIZATION│  Did the user explicitly approve it?
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│  EXECUTION   │  Perform only the named operation.
+└──────┬───────┘
+       ↓
+┌──────────────┐
+│    AUDIT     │  What happened?
+└──────────────┘
+```
 
-**Version:** 0.2.0-alpha  
-**Platform:** Linux, with distribution-agnostic capability detection  
-**Python:** 3.11+
+That boundary is the core design principle of NEXUS.
 
-> **Project state:** NEXUS is being wrapped up as a completed portfolio/learning milestone. The core operations platform is stable enough to preserve and showcase; larger experimental features are intentionally deferred rather than rushed into the codebase.
+> **Diagnosis is not execution. A proposal is not permission. Automation is not unrestricted shell access.**
 
-The repository remains usable and open for future maintenance. The current screen-activity work stops at a privacy-first lifecycle and Wayland portal capability foundation; actual frame recording is deliberately deferred until a well-tested PipeWire recorder can be integrated without weakening the safety model.
+---
 
-## What NEXUS can answer
+## Why this project exists
 
-| Question | NEXUS surface | Result |
+NEXUS started as a practical Linux diagnostic toolkit and grew into an exploration of what a small, safety-conscious **personal Linux operations platform** could look like.
+
+Along the way, the project became a hands-on implementation of several real engineering ideas:
+
+- system telemetry and historical observations
+- deterministic diagnostics
+- structured findings and incident modeling
+- explainable remediation planning
+- confirmation-gated system mutations
+- audit logging
+- scheduled automation
+- desktop GUI design
+- plugin architecture and capability registries
+- cross-distribution capability detection
+- privacy-first capture architecture
+- testable system command boundaries
+
+The result is intentionally personal, local-first, and inspectable. There is no cloud control plane hiding behind the interface.
+
+---
+
+## What can NEXUS actually do?
+
+| Need | Command / Surface | What you get |
 | --- | --- | --- |
-| What is my machine doing right now? | `nexus status` | CPU, memory, disk, network snapshot |
-| Is something unhealthy? | `nexus doctor` | Explicit health checks |
-| What actually needs attention? | `nexus diagnose` | Findings grouped into incidents |
-| Why was it flagged? | `nexus diagnose` | Evidence and deterministic rules |
-| What should I do next? | `nexus diagnose` | Explainable remediation proposals |
-| What changed over time? | `nexus-observe` / GUI Telemetry | Historical observations and trend detection |
-| What is the current incident? | GUI Incidents | Evidence, grouping, and remediation plan |
-| Are services failing? | `nexus services` / diagnosis | Native service-manager evidence |
-| Are packages waiting for updates? | `nexus packages` / diagnosis | Native package-manager evidence |
-| Can I automate recurring checks? | `nexus-scheduler` | Allow-listed scheduled jobs |
-| Can I extend NEXUS? | `nexus-plugins` | Versioned plugin API and capability registry |
-| Can I operate this visually? | `nexus-gui` | Desktop operations, incidents, and telemetry |
+| Inspect the machine | `nexus status` | CPU, memory, disk, network snapshot |
+| Run health checks | `nexus doctor` | Non-destructive health findings |
+| Export health data | `nexus report` | Structured JSON report |
+| Diagnose problems | `nexus diagnose` | Findings → incidents → remediation proposals |
+| Track system history | `nexus-observe` | Persisted observations and trend detection |
+| Inspect services | `nexus services` | Native service-manager state |
+| Inspect packages | `nexus packages` | Native package-manager update information |
+| Plan package changes | `nexus packages update` | Confirmation-gated update proposals |
+| Control a service | `nexus service start/stop/restart` | Named, confirmed, auditable actions |
+| Review operations | `nexus history` | Audit history |
+| Automate safely | `nexus automate` | Allow-listed dry-run automation |
+| Schedule jobs | `nexus-scheduler` | Controlled recurring jobs |
+| Use a desktop interface | `nexus-gui` | GUI operations, incidents and telemetry |
+| Extend the platform | `nexus-plugins` | Versioned plugin API and capability registry |
+| Inspect capture state | `nexus-capture` | Privacy-first local capture lifecycle |
 
-The important distinction is that **NEXUS does not hide the decision behind an automation button**. Diagnosis and planning are read-only. Mutating actions remain explicit, confirmation-gated, named, and auditable.
+### The command that ties it together
 
-## Features
+```bash
+nexus diagnose
+```
 
-### System intelligence
+The goal is not merely to print a warning. NEXUS tries to answer:
 
-- `nexus status` — inspect CPU load, memory, disk, and network state.
-- `nexus doctor` — run non-destructive health checks with JSON output.
-- `nexus report` — export a JSON health report.
-- `nexus-observe` — persist system observations and inspect historical resource trends.
-- Historical anomaly detection for persistent CPU, memory, and disk pressure.
+1. **What was observed?**
+2. **Why does it matter?**
+3. **Which findings are related?**
+4. **What could be done about them?**
+5. **Would that action change the system?**
+6. **If so, where is the explicit authorization boundary?**
 
-### Diagnostics and incident modeling
+---
 
-- `nexus diagnose` — the main user-facing command for "what needs attention and what should I do next?".
-- `nexus-diagnose` — standalone diagnostic entry point for the same analysis pipeline.
-- Failed services are surfaced as structured findings through the detected native service backend.
-- Available package updates are represented as informational findings with confirmation metadata.
-- Related findings can be grouped into structured incidents.
-- Incidents preserve severity, evidence, finding identifiers, and confirmation requirements.
+## A few examples
 
-### Explainable remediation
+### See the current system state
 
-- Remediation proposals are generated from known findings rather than arbitrary shell input.
-- Each proposal exposes a rationale, risk level, command representation, and confirmation requirement.
-- Diagnostic and remediation layers are planning-only: they do not execute commands.
-- Mutating service and package operations remain behind the existing confirmation-gated action engines.
+```bash
+nexus status
+```
 
-### Operations, GUI, plugins, and automation
+### Run a non-destructive health check
 
-- `nexus automate` — evaluate safe automation rules in dry-run mode.
-- `nexus services` — inspect supported native service-manager state.
-- `nexus packages` — inspect available updates through the detected native package manager.
-- `nexus packages update` — prepare confirmation-gated package update proposals.
-- `nexus service start|stop|restart ...` — plan controlled service actions with an explicit confirmation gate.
-- `nexus history` — inspect recent service-action audit records.
-- `nexus-scheduler` — manage safe recurring NEXUS jobs.
-- `nexus-gui` — launch the PySide6 desktop operations dashboard.
-- GUI **Incidents** — investigate current findings and remediation proposals in one place.
-- GUI **Telemetry** — visualize persisted CPU, memory, and disk history.
-- `nexus-plugins` — inspect installed third-party plugins through the versioned plugin API.
-- Policy-gated automation — named action registry, centralized policy, dry-run execution, confirmation gates, and audit logging.
-- JSON Lines audit logging under `.nexus/` for operational decisions.
+```bash
+nexus doctor
+```
 
-### Privacy-first screen activity foundation
+### Get the complete diagnostic pipeline
 
-- `nexus-capture` — inspect the local capture lifecycle.
-- Capture policy is disabled by default.
-- Session metadata is stored locally with restrictive permissions.
-- Wayland/XDG Desktop Portal capability is detected without silently starting capture.
-- The current backend fails closed instead of pretending that a recording exists.
-- Actual frame recording is intentionally deferred to a future, separately validated milestone.
+```bash
+nexus diagnose
+```
 
-## Linux compatibility
+### Inspect package updates
 
-NEXUS detects distribution and native capability rather than requiring one hard-coded distro:
+```bash
+nexus packages
+```
+
+### Inspect services
+
+```bash
+nexus services
+```
+
+### Review what NEXUS has recorded as operational history
+
+```bash
+nexus history
+```
+
+### Launch the desktop dashboard
+
+```bash
+nexus-gui
+```
+
+---
+
+## Safety model
+
+NEXUS treats system mutation as a privileged boundary rather than an implementation detail.
+
+A typical operation follows:
+
+```text
+Finding
+  ↓
+Remediation proposal
+  ↓
+Named action
+  ↓
+Policy check
+  ↓
+Explicit confirmation
+  ↓
+Execution
+  ↓
+Audit record
+```
+
+This means diagnostic code does not casually gain the ability to execute arbitrary shell commands. Actions are represented as known operations with explicit confirmation requirements and audit records.
+
+The same principle applies to automation: **dry-run first, authorize second, execute only the capabilities that the platform explicitly exposes.**
+
+---
+
+## GUI
+
+NEXUS includes a PySide6 desktop interface intended to turn the same operational model into something easier to inspect visually.
+
+The GUI includes:
+
+- system status
+- operational overview
+- incident investigation
+- remediation proposals
+- telemetry history
+- resource trend visualization
+- operational controls
+
+The GUI is not a separate product with its own logic. It sits on top of the same diagnostic and operational model.
+
+---
+
+## Historical intelligence
+
+NEXUS can persist observations and use historical data to identify persistent resource pressure rather than reacting to one noisy sample.
+
+The system can reason about trends such as:
+
+```text
+CPU pressure      ────────────────╮
+                                  ├── persistent trend
+Memory pressure   ────────────────╯
+
+Disk pressure     ────────╮
+                          └──────── isolated event
+```
+
+This distinction matters: a single high reading and a sustained resource problem are not the same diagnostic signal.
+
+---
+
+## Cross-distribution Linux support
+
+NEXUS is designed around detected Linux capabilities rather than one hard-coded distribution.
 
 | Linux family | Package backend | Common service backend |
 | --- | --- | --- |
@@ -120,17 +246,90 @@ NEXUS detects distribution and native capability rather than requiring one hard-
 | Void | xbps | runit |
 | Solus | eopkg | systemd |
 
-This table describes detected capability coverage, not a claim that every NEXUS feature behaves identically on every distribution. Unsupported native capabilities fail closed.
+This is **capability coverage**, not a claim that every feature behaves identically on every Linux distribution. Unsupported capabilities fail closed instead of pretending they work.
 
-## Operational pipeline
+---
+
+## Privacy-first screen activity foundation
+
+NEXUS also explored a Recall-like local screen-activity workflow, but the project deliberately stopped before shipping an unsafe or half-finished recorder.
+
+The implemented foundation includes:
+
+- capture lifecycle and state modeling
+- capture policy, disabled by default
+- restrictive local session metadata storage
+- `nexus-capture` lifecycle inspection
+- Wayland/XDG Desktop Portal capability detection
+- fail-closed behavior when a safe recording backend is unavailable
+
+The full **Portal → PipeWire frame recorder is intentionally deferred**. NEXUS does not claim to record your screen when the underlying recorder is not actually implemented.
+
+That is a feature of the engineering process, not a missing checkbox: sensitive functionality should not be shipped merely to make a README look complete.
+
+---
+
+## Architecture
+
+At a high level:
 
 ```text
-Observation → Diagnosis → Planning → Authorization → Execution → Audit
+                    ┌─────────────────────┐
+                    │     Linux host      │
+                    └──────────┬──────────┘
+                               ↓
+                    ┌─────────────────────┐
+                    │ Observation layer  │
+                    └──────────┬──────────┘
+                               ↓
+                    ┌─────────────────────┐
+                    │ Diagnostic engine  │
+                    └──────────┬──────────┘
+                               ↓
+                    ┌─────────────────────┐
+                    │ Incident modeling  │
+                    └──────────┬──────────┘
+                               ↓
+                    ┌─────────────────────┐
+                    │ Remediation planner│
+                    └──────────┬──────────┘
+                               ↓
+                    ┌─────────────────────┐
+                    │ Policy / authorize │
+                    └──────────┬──────────┘
+                               ↓
+                    ┌─────────────────────┐
+                    │ Action engines      │
+                    └──────────┬──────────┘
+                               ↓
+                    ┌─────────────────────┐
+                    │ Audit + history    │
+                    └─────────────────────┘
 ```
 
-The boundary is intentional. Plugins and automation extend the platform through named capabilities rather than arbitrary shell access.
+The architecture also exposes extension points through the plugin system and controlled automation layer.
 
-## Quick start
+---
+
+## Engineering details
+
+NEXUS is intentionally built with boring, inspectable primitives where they make sense:
+
+- Python 3.11+
+- `unittest` test suite
+- injectable system command runners for deterministic tests
+- structured dataclasses/models for findings and incidents
+- JSON and JSON Lines for machine-readable output and audit records
+- native Linux package/service capability detection
+- PySide6 for the desktop UI
+- GitHub Actions CI across Python 3.11, 3.12 and 3.13
+- system-wide installation using the host Python, without requiring pipx
+
+The project favors small explicit boundaries over a large framework abstraction.
+
+---
+
+## Installation
 
 ### Development checkout
 
@@ -146,7 +345,7 @@ python -m unittest discover -s tests -v
 
 ### Normal system installation
 
-NEXUS also provides a native-style system installer that installs with the host Python and exposes commands directly on `PATH` without pipx:
+For normal use, NEXUS can be installed system-wide and exposed directly on `PATH`:
 
 ```bash
 cd nexus
@@ -154,52 +353,107 @@ sudo ./scripts/install-system.sh
 nexus diagnose
 ```
 
-See `docs/system-install.md` and `docs/usage.md` for the complete installation and operations workflow.
+The installer uses the host Python and does **not** require pipx. The repository-local `.venv` is for development and testing.
+
+See `docs/system-install.md` and `docs/usage.md` for the complete workflow.
+
+---
 
 ## Documentation
 
-- `docs/usage.md` — practical command manual and troubleshooting guide.
-- `docs/architecture.md` — execution boundaries and system architecture.
-- `docs/diagnostics.md` — diagnostic and incident pipeline.
-- `docs/platform.md` — plugin and automation platform contract.
-- `docs/screen-activity.md` — privacy model and deferred screen-capture roadmap.
-- `docs/system-install.md` — system-wide installation workflow.
-- `CONTRIBUTING.md` — branch, test, documentation, commit, and safety workflow.
-- `CHANGELOG.md` — project history and milestone notes.
+- [`docs/usage.md`](docs/usage.md) — practical command manual and troubleshooting
+- [`docs/architecture.md`](docs/architecture.md) — execution boundaries and architecture
+- [`docs/diagnostics.md`](docs/diagnostics.md) — diagnostics and incident pipeline
+- [`docs/platform.md`](docs/platform.md) — plugin and automation platform contract
+- [`docs/screen-activity.md`](docs/screen-activity.md) — privacy model and capture roadmap
+- [`docs/system-install.md`](docs/system-install.md) — system-wide installation
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — development and contribution workflow
+- [`CHANGELOG.md`](CHANGELOG.md) — project history and milestones
 
-## Roadmap / milestone history
+---
 
-The major learning milestones are complete:
+## Project journey
 
-- [x] system intelligence CLI
-- [x] dry-run automation rule engine
-- [x] service inspection and controlled action engine
-- [x] package update inspection and action planning
-- [x] scheduler and audit history
-- [x] desktop GUI foundation
-- [x] diagnostic engine and structured findings
+NEXUS was developed as a sequence of increasingly ambitious engineering milestones:
+
+```text
+Linux telemetry
+      ↓
+Health checks
+      ↓
+Diagnostics
+      ↓
+Historical observations
+      ↓
+Incident modeling
+      ↓
+Explainable remediation
+      ↓
+Authorization + audit
+      ↓
+Automation + scheduler
+      ↓
+Desktop GUI
+      ↓
+Plugin system
+      ↓
+Cross-distribution support
+      ↓
+Privacy-first capture foundation
+```
+
+Each step was kept testable and documented rather than treating the project as one giant feature.
+
+---
+
+## Project status
+
+**NEXUS is being wrapped up as a completed portfolio and learning milestone.**
+
+The core platform is intentionally preserved in a coherent state rather than expanded indefinitely. Future maintenance or focused experiments can continue from the existing architecture, but larger unfinished features — especially full screen recording — are not presented as complete.
+
+### Completed milestones
+
+- [x] Linux system intelligence CLI
+- [x] non-destructive health checks
 - [x] historical observation and anomaly detection
-- [x] incident modeling and explainable remediation planning
-- [x] integrated `nexus diagnose` command center
+- [x] diagnostic engine and structured findings
+- [x] incident modeling
+- [x] explainable remediation planning
+- [x] confirmation-gated service and package actions
+- [x] audit history
+- [x] policy-gated automation
+- [x] scheduler
+- [x] desktop GUI
 - [x] GUI incident/remediation center
-- [x] richer historical visualization
+- [x] telemetry visualization
 - [x] versioned plugin system
-- [x] policy-gated Linux automation platform
 - [x] distribution-agnostic capability detection
 - [x] native system-wide installer
-- [x] privacy-first capture lifecycle and Wayland portal capability foundation
+- [x] privacy-first capture lifecycle foundation
+- [x] Wayland/XDG Portal capability detection
 - [ ] full Portal → PipeWire frame recorder — deliberately deferred
 
-The unchecked recorder is intentional. The project is being closed as a coherent, documented milestone rather than extended indefinitely.
+---
 
 ## Development
+
+Run the test suite with:
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-System command runners are injectable for deterministic tests. New system mutations should have focused tests, a dry-run or proposal path, and an explicit authorization boundary.
+When extending NEXUS, system mutations should remain covered by focused tests, an explicit planning or dry-run path, an authorization boundary, and auditability.
+
+---
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [`LICENSE`](LICENSE).
+
+---
+
+<p align="center">
+  <sub>Built as a Linux systems engineering and software architecture learning project.</sub>
+</p>
