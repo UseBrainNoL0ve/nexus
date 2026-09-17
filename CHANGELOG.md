@@ -11,21 +11,24 @@ All notable changes to NEXUS are documented here.
 - Added portable package-update inspection that conservatively parses supported native managers.
 - Added native service-manager command mapping for systemd, OpenRC, runit, s6-rc, and dinit.
 - Added distribution-agnostic platform documentation and explicit fail-closed behavior for unsupported capabilities.
-- Added a privacy-first design specification for an opt-in local screen activity recorder, including a visible recording state, local-only storage, retention controls, and a Wayland/XDG Desktop Portal integration strategy.
-- Added a native system-wide installer that places NEXUS under `/usr/local` and exposes its commands directly on `PATH`, without a repository-local venv or pipx environment.
+- Added a privacy-first design specification for an opt-in local screen activity recorder, including visible state, local-only storage, retention controls, and a Wayland/XDG Desktop Portal strategy.
+- Added a native system-wide installer that places NEXUS under `/usr/local` and exposes commands directly on `PATH`, without a repository-local venv or pipx environment.
 
 ### User value
 
 - NEXUS core functionality no longer depends on CachyOS or Arch Linux.
-- Debian/Ubuntu, Fedora/RHEL-family, SUSE, Alpine, Void, Solus, Arch-family, and other distributions can use the same NEXUS application when a supported native capability is present.
+- Common Linux distributions can use the same application when a supported native capability is present.
 - Unknown distributions remain usable for telemetry and diagnosis instead of being rejected by a distro allow-list.
 - End users can run NEXUS as a normal system command without activating the repository's development virtual environment.
-- The planned screen activity feature is explicitly designed for the device owner's local incident investigation rather than covert monitoring.
+- The planned screen activity feature is designed for local incident investigation rather than covert monitoring.
 
 ### Fixed
 
-- Package command-runner injection is now resolved at call time, making tests deterministic and avoiding import-time default binding.
-- Core package and service action tests now inject explicit backends instead of depending on the host distribution or service manager.
+- Package command-runner injection is resolved at call time, avoiding import-time default binding and making tests deterministic.
+- Portable package parsing was hardened for apt output and other native-manager formats.
+- Service-name validation is now backend-aware: systemd retains its `.service` unit contract while other supported service managers can use their native service names.
+- Cross-distro tests explicitly inject package and service backends instead of depending on the GitHub Actions host.
+- Usage documentation now matches the system-wide installation workflow and documents the universal Linux capability model.
 
 ### Safety
 
