@@ -22,6 +22,11 @@ All notable changes to NEXUS are documented here.
 - End users can run NEXUS as a normal system command without activating the repository's development virtual environment.
 - The planned screen activity feature is explicitly designed for the device owner's local incident investigation rather than covert monitoring.
 
+### Fixed
+
+- Package command-runner injection is now resolved at call time, making tests deterministic and avoiding import-time default binding.
+- Core package and service action tests now inject explicit backends instead of depending on the host distribution or service manager.
+
 ### Safety
 
 - Distribution detection never executes a command.
