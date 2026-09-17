@@ -4,6 +4,12 @@ All notable changes to NEXUS are documented here.
 
 ## [Unreleased] - 2026-09-17
 
+### Project status
+
+- Marked the current NEXUS implementation as a completed portfolio/learning milestone.
+- Documented the project as intentionally entering a light maintenance state rather than continuing indefinite feature expansion.
+- Kept the full Portal → PipeWire frame recorder explicitly deferred until it can be implemented and validated without weakening the privacy and fail-closed safety model.
+
 ### Added
 
 - Added capability-based Linux distribution detection from `/etc/os-release`.
@@ -24,7 +30,8 @@ All notable changes to NEXUS are documented here.
 - Common Linux distributions can use the same application when a supported native capability is present.
 - Unknown distributions remain usable for telemetry and diagnosis instead of being rejected by a distro allow-list.
 - End users can run NEXUS as a normal system command without activating the repository's development virtual environment.
-- The screen activity roadmap now has a testable lifecycle and Wayland capability boundary before platform-specific frame recording is introduced.
+- The screen activity roadmap has a testable lifecycle and Wayland capability boundary before platform-specific frame recording is introduced.
+- The final documentation now makes the project's scope and deliberate stopping point explicit.
 
 ### Fixed
 
