@@ -26,14 +26,28 @@ Desktop capture portal
     ↓
 Local recorder
     ↓
-Encrypted/private local storage
+Private local storage
     ↓
 Owner-controlled review
 ```
 
-The recorder should not attempt to defeat desktop security boundaries. On Wayland, the preferred integration is the XDG Desktop Portal ScreenCast API, which requires an interactive permission flow and exposes the resulting PipeWire stream to the application. citeturn0search8
+On Wayland, the preferred integration is the XDG Desktop Portal ScreenCast API. NEXUS first detects whether the Wayland session and the portal D-Bus endpoint are available; capability detection alone never starts a recording.
 
-On supported desktop environments, the portal may persist a user's source-selection decision through the portal's persistence mechanism. NEXUS should still expose its own explicit recording state and disable control. citeturn0search8
+## Current implementation status
+
+The capture foundation is implemented, but **actual frame recording is intentionally not enabled yet**.
+
+Current pieces:
+
+- explicit `CapturePolicy`, disabled by default;
+- persistent local session metadata with restrictive permissions;
+- explicit capture state machine;
+- `CaptureBackend` interface with fail-closed behavior;
+- `nexus-capture` lifecycle CLI;
+- Wayland/XDG Portal capability detection through a short D-Bus ping;
+- tests covering Pardus, Ubuntu, Fedora, Kali, Parrot, CachyOS package-manager selection and Wayland capability detection.
+
+The `WaylandPortalBackend` refuses to enter a fake `recording` state until the PipeWire stream consumer is implemented. This is deliberate: a capability probe is not the same thing as a working recorder.
 
 ## Data handling
 
@@ -65,6 +79,8 @@ nexus capture list
 nexus capture delete <id>
 ```
 
+The currently installed standalone command is `nexus-capture`; integration of these subcommands into the main `nexus` CLI will happen with the recorder's user-facing activation work.
+
 The GUI should expose the same state machine:
 
 ```text
@@ -93,7 +109,7 @@ without treating the video itself as a trusted security log.
 
 ## Platform strategy
 
-NEXUS is distribution-agnostic, so screen capture must be capability-detected rather than hard-coded to one desktop environment.
+NEXUS is distribution-agnostic at the capability layer. Screen capture therefore follows the desktop session and available portal capabilities rather than assuming one Linux distribution.
 
 Preferred order:
 
@@ -102,6 +118,25 @@ Preferred order:
 3. A read-only `unsupported` state when no safe backend is available.
 
 The feature must fail closed. If a backend cannot establish an interactive, user-authorized capture session, NEXUS should not silently fall back to an unrestricted screen-grabbing mechanism.
+
+## Linux compatibility validation
+
+The package backend mapping explicitly covers the requested distributions:
+
+| Distribution | Package family | Service family commonly expected |
+|---|---|---|
+| CachyOS / Arch / Manjaro | pacman | systemd |
+| Ubuntu / Debian / Mint | apt | systemd |
+| Pardus | apt | systemd |
+| Kali Linux | apt | systemd |
+| Parrot OS | apt | systemd |
+| Fedora / RHEL-family | dnf | systemd |
+| openSUSE | zypper | systemd |
+| Alpine | apk | OpenRC |
+| Void | xbps | runit |
+| Solus | eopkg | systemd |
+
+This is **capability coverage, not a promise that every NEXUS feature is identical on every distribution**. Desktop capture also depends on the desktop session, Wayland/X11, portal implementation, PipeWire availability, permissions, and installed native tools.
 
 ## Non-goals
 
@@ -116,10 +151,11 @@ NEXUS will not implement:
 
 ## Implementation phases
 
-1. Add a capability detector and privacy configuration model.
-2. Add the capture state machine and local metadata/audit model.
-3. Implement the Wayland portal backend.
-4. Add a visible GUI recording indicator and controls.
-5. Add encrypted/private storage and retention management.
-6. Add Incident Center correlation and tests.
-7. Add X11 and other explicitly supported backends only where their security properties can be documented.
+1. ~~Capability detector and privacy configuration model.~~
+2. ~~Capture state machine and local metadata model.~~
+3. ~~Wayland portal capability foundation.~~
+4. Implement the actual Portal ScreenCast + PipeWire stream recorder.
+5. Add a visible GUI recording indicator and controls.
+6. Add encrypted/private storage and retention management.
+7. Add Incident Center correlation and tests.
+8. Add X11 and other explicitly supported backends only where their security properties can be documented.
